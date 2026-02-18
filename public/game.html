@@ -1,0 +1,1448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RuneScape Agent Arena — Open World</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;overflow:hidden;font-family:'Courier New',monospace;cursor:crosshair}
+canvas{display:block}
+#ui-overlay{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10}
+#dialogue-box{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);width:600px;max-width:90vw;
+  background:rgba(10,10,20,.95);border:2px solid #d4a017;border-radius:8px;padding:16px 20px;
+  color:#e0e0e0;font-size:14px;display:none;pointer-events:auto;z-index:20}
+#dialogue-box .speaker{color:#d4a017;font-weight:bold;margin-bottom:6px;font-size:13px}
+#dialogue-box .text{line-height:1.5}
+#dialogue-box .prompt{color:#888;font-size:11px;margin-top:8px}
+#zone-label{position:fixed;top:20px;left:50%;transform:translateX(-50%);color:#d4a017;
+  font-size:20px;font-weight:bold;text-shadow:0 0 10px rgba(212,160,23,.5);opacity:0;
+  transition:opacity .5s;z-index:15;letter-spacing:2px}
+#zone-label.show{opacity:1}
+#combat-hud{position:fixed;top:0;left:0;width:100%;height:100%;display:none;z-index:25;pointer-events:none}
+#combat-overlay{position:fixed;top:10px;left:50%;transform:translateX(-50%);
+  background:rgba(10,10,20,.9);border:2px solid #d4a017;border-radius:8px;padding:12px 24px;
+  color:#e0e0e0;display:none;z-index:30;min-width:500px;pointer-events:auto}
+#controls-help{position:fixed;bottom:20px;right:20px;color:#666;font-size:11px;text-align:right;z-index:15}
+#minimap-container{position:fixed;bottom:20px;left:20px;z-index:15}
+#hp-prayer-hud{position:fixed;top:20px;right:20px;z-index:15}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="ui-overlay">
+  <div id="zone-label"></div>
+  <div id="dialogue-box">
+    <div class="speaker"></div>
+    <div class="text"></div>
+    <div class="prompt">[E] Continue / [Q] Close</div>
+  </div>
+  <div id="combat-overlay"></div>
+  <div id="controls-help">
+    WASD / Arrows — Move &nbsp;|&nbsp; SHIFT — Run &nbsp;|&nbsp; E — Interact &nbsp;|&nbsp; SPACE — Jump<br>
+    TAB — Stats &nbsp;|&nbsp; M — Map
+  </div>
+  <canvas id="minimap" width="180" height="60"></canvas>
+  <div id="minimap-container"></div>
+  <canvas id="hpbar" width="200" height="80"></canvas>
+  <div id="hp-prayer-hud"></div>
+</div>
+<script>
+// ═══════════════════════════════════════════════
+//  RUNESCAPE AGENT ARENA — 2D OPEN WORLD ENGINE
+// ═══════════════════════════════════════════════
+
+const C = document.getElementById('game');
+const ctx = C.getContext('2d');
+const minimapC = document.getElementById('minimap');
+const minimapCtx = minimapC.getContext('2d');
+const hpC = document.getElementById('hpbar');
+const hpCtx = hpC.getContext('2d');
+
+// Position UI canvases
+minimapC.style.cssText = 'position:fixed;bottom:20px;left:20px;z-index:15;border:2px solid #d4a017;border-radius:4px;background:rgba(0,0,0,.7)';
+hpC.style.cssText = 'position:fixed;top:20px;right:20px;z-index:15';
+
+let W, H;
+function resize() { W = C.width = innerWidth; H = C.height = innerHeight; }
+resize();
+addEventListener('resize', resize);
+
+// ─── CONSTANTS ───
+const TILE = 40;
+const GRAVITY = 0.6;
+const WORLD_W = 12000;
+const WORLD_H = 800;
+const GROUND_Y = 520;
+const API = '/api/v1/arena';
+
+// ─── INPUT ───
+const keys = {};
+addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; if(['e','q',' ','tab','m'].includes(e.key.toLowerCase())) e.preventDefault(); });
+addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
+
+// ─── COLORS ───
+const COL = {
+  sky_day: '#1a1a2e', sky_night: '#0a0a12',
+  grass: '#1a3a1a', dirt: '#3a2a1a', stone: '#3a3a4a', sand: '#4a3a1a',
+  lava: '#cc3300', water: '#1a3a5a', snow: '#aabbcc',
+  gold: '#d4a017', red: '#cc3333', green: '#33cc33', blue: '#3388cc',
+  cyan: '#00cccc', purple: '#9944cc', white: '#e0e0e0', dim: '#666',
+  wild_ground: '#1a0a0a', wild_sky: '#1a0505',
+  lumber_sky: '#111128', varrock_sky: '#151520', arena_sky: '#0a0a15',
+};
+
+// ─── ZONE DEFINITIONS ───
+const ZONES = [
+  { name: 'Lumbridge',   x: 0,    w: 2400, sky: COL.lumber_sky, ground: COL.grass,  groundTop: '#2a5a2a', music: 'peaceful' },
+  { name: 'Road to Varrock', x: 2400, w: 1200, sky: '#12122a',  ground: COL.dirt,   groundTop: '#5a4a2a', music: 'travel' },
+  { name: 'Varrock',     x: 3600, w: 2400, sky: COL.varrock_sky, ground: COL.stone, groundTop: '#5a5a6a', music: 'town' },
+  { name: 'Wilderness Border', x: 6000, w: 600, sky: '#150808', ground: '#2a1a1a',  groundTop: '#3a2020', music: 'danger' },
+  { name: 'Wilderness',  x: 6600, w: 2400, sky: COL.wild_sky,   ground: COL.wild_ground, groundTop: '#2a1010', music: 'wild' },
+  { name: 'Combat Arena', x: 9000, w: 3000, sky: COL.arena_sky, ground: '#0f0f1a',  groundTop: '#1a1a3a', music: 'arena' },
+];
+
+// ─── WORLD OBJECTS (buildings, trees, decorations) ───
+const worldObjects = [];
+function addObj(type, x, y, w, h, props={}) { worldObjects.push({type, x, y, w, h, ...props}); }
+
+// Lumbridge
+addObj('castle', 200, GROUND_Y - 200, 250, 200, {zone:'Lumbridge'});
+addObj('tree', 550, GROUND_Y - 100, 60, 100, {foliage:'#1a5a1a'});
+addObj('tree', 700, GROUND_Y - 120, 70, 120, {foliage:'#1a6a1a'});
+addObj('tree', 900, GROUND_Y - 90, 50, 90, {foliage:'#1a5a2a'});
+addObj('river', 1100, GROUND_Y - 10, 200, 40);
+addObj('bridge', 1150, GROUND_Y - 20, 100, 20);
+addObj('tree', 1400, GROUND_Y - 110, 65, 110, {foliage:'#1a5a1a'});
+addObj('house', 1600, GROUND_Y - 100, 120, 100, {roof:'#8a3a1a'});
+addObj('tree', 1900, GROUND_Y - 130, 75, 130, {foliage:'#1a6a2a'});
+addObj('signpost', 2200, GROUND_Y - 60, 10, 60, {text:'Varrock →'});
+
+// Road
+addObj('rock', 2600, GROUND_Y - 30, 40, 30);
+addObj('signpost', 2900, GROUND_Y - 60, 10, 60, {text:'← Lumbridge | Varrock →'});
+addObj('tree', 3100, GROUND_Y - 100, 55, 100, {foliage:'#2a5a1a'});
+addObj('rock', 3400, GROUND_Y - 25, 35, 25);
+
+// Varrock
+addObj('wall_section', 3600, GROUND_Y - 160, 40, 160, {color:'#4a4a5a'});
+addObj('building', 3800, GROUND_Y - 130, 150, 130, {roof:'#5a2a2a', label:'General Store'});
+addObj('fountain', 4100, GROUND_Y - 50, 60, 50);
+addObj('building', 4350, GROUND_Y - 140, 160, 140, {roof:'#2a3a5a', label:'Champions Guild'});
+addObj('statue', 4650, GROUND_Y - 80, 30, 80);
+addObj('building', 4850, GROUND_Y - 120, 140, 120, {roof:'#5a4a2a', label:'Sword Shop'});
+addObj('tree', 5200, GROUND_Y - 100, 60, 100, {foliage:'#2a5a2a'});
+addObj('wall_section', 5560, GROUND_Y - 160, 40, 160, {color:'#4a4a5a'});
+
+// Wilderness Border
+addObj('signpost', 6100, GROUND_Y - 70, 10, 70, {text:'⚠ WILDERNESS ⚠', color:'#cc3333'});
+addObj('ditch', 6300, GROUND_Y - 5, 100, 15);
+
+// Wilderness
+addObj('bones', 6800, GROUND_Y - 15, 30, 15);
+addObj('dead_tree', 7000, GROUND_Y - 90, 40, 90);
+addObj('lava_pool', 7300, GROUND_Y - 8, 120, 20);
+addObj('bones', 7600, GROUND_Y - 15, 25, 15);
+addObj('dead_tree', 7900, GROUND_Y - 80, 35, 80);
+addObj('skull_pile', 8200, GROUND_Y - 25, 50, 25);
+addObj('lava_pool', 8500, GROUND_Y - 8, 150, 20);
+
+// Arena
+addObj('arena_gate', 9100, GROUND_Y - 180, 120, 180);
+addObj('arena_pillar', 9500, GROUND_Y - 150, 30, 150, {color:'#3a3a5a'});
+addObj('arena_floor', 9600, GROUND_Y, 2000, 10, {color:'#1a1a3a'});
+addObj('arena_pillar', 11300, GROUND_Y - 150, 30, 150, {color:'#3a3a5a'});
+addObj('torch', 9700, GROUND_Y - 100, 15, 100);
+addObj('torch', 10200, GROUND_Y - 100, 15, 100);
+addObj('torch', 10700, GROUND_Y - 100, 15, 100);
+addObj('torch', 11100, GROUND_Y - 100, 15, 100);
+
+// ─── NPCs ───
+const npcs = [
+  { id:'guide', name:'Gielinor Guide', x:350, y:GROUND_Y, zone:'Lumbridge',
+    dialogue:['Welcome to Gielinor, adventurer!','The Combat Arena lies far to the east, through Varrock and the Wilderness.','Train your skills and challenge other agents to prove your worth.','Use WASD to move, SHIFT to run, E to interact.'],
+    color:'#33aa33', hat:'#2a7a2a' },
+  { id:'hans', name:'Hans', x:1650, y:GROUND_Y, zone:'Lumbridge',
+    dialogue:['I\'ve been counting... you\'ve been here exactly 0 ticks.','The road east leads to Varrock. Be careful past the border.'],
+    color:'#aa8833', hat:'#7a5a1a' },
+  { id:'shopkeeper', name:'Shop Keeper', x:3880, y:GROUND_Y, zone:'Varrock',
+    dialogue:['Welcome to my shop!','I sell swords, armor, and supplies for the arena.','Come back when you\'re ready to gear up.'],
+    color:'#aa5533', hat:'#7a3a1a' },
+  { id:'guildmaster', name:'Guild Master', x:4420, y:GROUND_Y, zone:'Varrock',
+    dialogue:['The Champions Guild welcomes worthy fighters.','To enter the Arena, head east through the Wilderness.','Only the strongest survive out there...','Register at the Arena to begin your legend.'],
+    color:'#5533aa', hat:'#3a1a7a' },
+  { id:'oziach', name:'Oziach', x:5100, y:GROUND_Y, zone:'Varrock',
+    dialogue:['You want to fight in the Arena?','You\'ll need more than courage. You\'ll need strategy.','Melee beats Ranged. Ranged beats Magic. Magic beats Melee.','Remember the combat triangle, or you\'ll be eating dirt.'],
+    color:'#886633', hat:'#5a4420' },
+  { id:'wilderness_warning', name:'Border Guard', x:6150, y:GROUND_Y, zone:'Wilderness Border',
+    dialogue:['WARNING: The Wilderness is a dangerous PvP zone!','Beyond this ditch, you may be attacked by other players.','The Combat Arena lies further east. Proceed at your own risk.'],
+    color:'#cc5533', hat:'#993a1a' },
+  { id:'arena_master', name:'Arena Master', x:9200, y:GROUND_Y, zone:'Combat Arena',
+    dialogue:['Welcome to the Combat Arena, warrior!','Here, agents battle for glory and ELO rating.','Press [F] to register and begin fighting.','Choose your combat class wisely — the triangle decides your fate.'],
+    color:'#d4a017', hat:'#a07a0a', isArenaMaster: true },
+];
+
+// ─── PLAYER ───
+const player = {
+  x: 300, y: GROUND_Y, vx: 0, vy: 0,
+  w: 24, h: 40, onGround: true,
+  facing: 1, // 1=right, -1=left
+  walkFrame: 0, walkTimer: 0,
+  hp: 99, maxHp: 99, prayer: 99, maxPrayer: 99,
+  combat_class: 'melee', agent_id: null,
+  registered: false,
+  inArena: false, inFight: false,
+  equipment: { weapon: 'godsword', armor: 'torva', cape: 'fire' },
+};
+
+// ─── CAMERA ───
+const cam = { x: 0, y: 0, shake: 0 };
+
+// ─── GAME STATE ───
+let currentZone = ZONES[0];
+let dialogueState = null; // {npc, lineIndex}
+let particles = [];
+let tick = 0;
+let stars = Array.from({length:120}, ()=>({x:Math.random()*WORLD_W,y:Math.random()*300,s:Math.random()*2+0.5,b:Math.random()}));
+let clouds = Array.from({length:20}, ()=>({x:Math.random()*WORLD_W,y:50+Math.random()*150,w:80+Math.random()*120,speed:0.1+Math.random()*0.3}));
+
+// Arena fight state
+let arenaFight = null;
+let arenaAnimations = [];
+let combatLog = [];
+let worldWs = null;
+const worldAgents = new Map();
+const worldBroadcastState = { at: 0, x: 0, y: 0, zone: '' };
+
+function getEquipmentForClass(combatClass) {
+  if(combatClass === 'melee') return { weapon: 'godsword', armor: 'torva', cape: 'fire' };
+  if(combatClass === 'ranged') return { weapon: 'crossbow', armor: 'armadyl', cape: 'accumulator' };
+  return { weapon: 'staff', armor: 'ancestral', cape: 'max' };
+}
+
+function getWorldSocketUrl() {
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${location.host}/ws/arena`;
+}
+
+function connectWorldSocket() {
+  if(worldWs && (worldWs.readyState === WebSocket.OPEN || worldWs.readyState === WebSocket.CONNECTING)) return;
+  worldWs = new WebSocket(getWorldSocketUrl());
+  worldWs.onopen = () => {
+    worldWs.send(JSON.stringify({ type: 'world_subscribe' }));
+    sendWorldUpdate(true);
+  };
+  worldWs.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+      if(data.type === 'world_state' && Array.isArray(data.agents)) {
+        worldAgents.clear();
+        data.agents.forEach(agent => {
+          if(agent.agent_id !== player.agent_id) worldAgents.set(agent.agent_id, agent);
+        });
+      }
+      if(data.type === 'world_update' && data.agent?.agent_id) {
+        if(data.agent.agent_id !== player.agent_id) {
+          worldAgents.set(data.agent.agent_id, data.agent);
+        }
+      }
+      if(data.type === 'world_leave' && typeof data.agent_id === 'string') {
+        worldAgents.delete(data.agent_id);
+      }
+    } catch {}
+  };
+  worldWs.onclose = () => {
+    if(player.registered) {
+      setTimeout(connectWorldSocket, 1200);
+    }
+  };
+}
+
+function sendWorldUpdate(force = false) {
+  if(!player.registered || !player.agent_id || player.inFight) return;
+  if(!worldWs || worldWs.readyState !== WebSocket.OPEN) return;
+
+  const now = Date.now();
+  const zoneName = currentZone?.name || getZone(player.x).name;
+  const movedFar = Math.hypot(player.x - worldBroadcastState.x, player.y - worldBroadcastState.y) > 16;
+  const zoneChanged = zoneName !== worldBroadcastState.zone;
+  const intervalElapsed = now - worldBroadcastState.at > 140;
+  if(!force && !movedFar && !zoneChanged && !intervalElapsed) return;
+
+  worldWs.send(JSON.stringify({
+    type: 'world_update',
+    agent_id: player.agent_id,
+    combat_class: player.combat_class,
+    x: Math.round(player.x),
+    y: Math.round(player.y),
+    zone: zoneName,
+  }));
+
+  worldBroadcastState.at = now;
+  worldBroadcastState.x = player.x;
+  worldBroadcastState.y = player.y;
+  worldBroadcastState.zone = zoneName;
+}
+
+function leaveWorldPresence() {
+  if(player.agent_id && worldWs && worldWs.readyState === WebSocket.OPEN) {
+    try {
+      worldWs.send(JSON.stringify({ type: 'world_leave', agent_id: player.agent_id }));
+    } catch {}
+  }
+}
+
+addEventListener('beforeunload', leaveWorldPresence);
+
+// ─── PARTICLE SYSTEM ───
+function spawnParticle(x, y, type, text='', color='#fff') {
+  particles.push({ x, y, vx:(Math.random()-0.5)*3, vy:-2-Math.random()*3,
+    life:1, type, text, color, size: type==='hitsplat'?16:4 });
+}
+function spawnHitsplat(x, y, damage, type='damage') {
+  const col = type==='damage'?'#cc3333':type==='heal'?'#33cc33':type==='prayer'?'#3388cc':'#d4a017';
+  particles.push({ x, y, vx:0, vy:-1.5, life:1.5, type:'hitsplat', text:String(damage), color:col, size:18 });
+}
+
+// ─── DRAW HELPERS ───
+function drawRect(x, y, w, h, col) { ctx.fillStyle=col; ctx.fillRect(x-cam.x, y-cam.y, w, h); }
+function drawText(text, x, y, col='#fff', size=12, align='center') {
+  ctx.fillStyle=col; ctx.font=`${size}px 'Courier New',monospace`; ctx.textAlign=align;
+  ctx.fillText(text, x-cam.x, y-cam.y);
+}
+
+// ─── DRAW CHARACTER (programmatic pixel-art style) ───
+function drawCharacter(x, y, facing, walkFrame, colors, w=24, h=40, equipment=null) {
+  const cx = x - cam.x;
+  const cy = y - cam.y;
+  const f = facing;
+  const bob = Math.sin(walkFrame * 0.3) * 2;
+  const legSwing = Math.sin(walkFrame * 0.6) * 6;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, w*0.6, 4, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // Legs
+  ctx.fillStyle = colors.legs || '#2a2a4a';
+  ctx.fillRect(cx - 6, cy - 14 + legSwing*0.5, 5, 14);
+  ctx.fillRect(cx + 1, cy - 14 - legSwing*0.5, 5, 14);
+
+  // Body
+  ctx.fillStyle = colors.body || '#3a3a5a';
+  ctx.fillRect(cx - 8, cy - 30 + bob, 16, 18);
+
+  // Cape
+  if(equipment?.cape) {
+    const capeColors = {fire:'#cc3300',infernal:'#ff4400',max:'#d4a017',accumulator:'#336633'};
+    ctx.fillStyle = capeColors[equipment.cape] || '#333';
+    ctx.fillRect(cx - 6*f - (f>0?8:0), cy - 28 + bob, 8, 16);
+  }
+
+  // Arms
+  ctx.fillStyle = colors.arms || colors.body || '#3a3a5a';
+  const armSwing = Math.sin(walkFrame * 0.6) * 8;
+  ctx.fillRect(cx - 11, cy - 28 + bob + armSwing*0.3, 4, 12);
+  ctx.fillRect(cx + 7, cy - 28 + bob - armSwing*0.3, 4, 12);
+
+  // Head
+  ctx.fillStyle = colors.skin || '#c8a882';
+  ctx.fillRect(cx - 5, cy - 40 + bob, 10, 10);
+
+  // Helmet/hat
+  ctx.fillStyle = colors.hat || '#4a4a5a';
+  ctx.fillRect(cx - 7, cy - 44 + bob, 14, 6);
+  if(equipment?.armor === 'torva' || equipment?.armor === 'ancestral') {
+    ctx.fillRect(cx - 8, cy - 46 + bob, 16, 4); // visor
+  }
+
+  // Eyes
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(cx + (f>0?1:-4), cy - 38 + bob, 2, 2);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(cx + (f>0?2:-3), cy - 38 + bob, 1, 2);
+
+  // Weapon
+  if(equipment?.weapon) {
+    const wx = cx + 10*f;
+    const wy = cy - 24 + bob;
+    ctx.strokeStyle = '#aaa';
+    ctx.lineWidth = 2;
+    if(['godsword','whip','scimitar'].some(w=>equipment.weapon.includes(w))) {
+      // Melee weapon
+      ctx.strokeStyle = '#ccccdd';
+      ctx.beginPath();
+      ctx.moveTo(wx, wy);
+      ctx.lineTo(wx + 16*f, wy - 20);
+      ctx.stroke();
+      // Blade tip
+      ctx.fillStyle = '#d4a017';
+      ctx.fillRect(wx + 14*f, wy - 22, 4, 4);
+    } else if(equipment.weapon.includes('bow') || equipment.weapon.includes('crossbow')) {
+      ctx.strokeStyle = '#6a4a2a';
+      ctx.beginPath();
+      ctx.moveTo(wx, wy - 15);
+      ctx.quadraticCurveTo(wx + 10*f, wy, wx, wy + 10);
+      ctx.stroke();
+    } else {
+      // Staff
+      ctx.strokeStyle = '#5a3a1a';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(wx, wy + 5);
+      ctx.lineTo(wx + 4*f, wy - 25);
+      ctx.stroke();
+      ctx.fillStyle = '#3388cc';
+      ctx.beginPath();
+      ctx.arc(wx + 4*f, wy - 28, 5, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+}
+
+// ─── DRAW NPC ───
+function drawNPC(npc) {
+  const bobVal = Math.sin(tick * 0.03 + npc.x) * 2;
+  const facing = player.x > npc.x ? 1 : -1;
+
+  drawCharacter(npc.x, npc.y, facing, bobVal, {
+    body: npc.color, hat: npc.hat, skin:'#c8a882', legs:'#2a2a3a'
+  }, 24, 40);
+
+  // Name tag
+  const dist = Math.abs(player.x - npc.x);
+  if(dist < 200) {
+    const alpha = Math.max(0, 1 - dist/200);
+    ctx.globalAlpha = alpha;
+    drawText(npc.name, npc.x, npc.y - 52, '#d4a017', 11);
+    if(dist < 80) {
+      drawText('[E] Talk', npc.x, npc.y - 64, '#888', 9);
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ─── DRAW WORLD OBJECTS ───
+function drawWorldObject(obj) {
+  const ox = obj.x - cam.x;
+  const oy = obj.y - cam.y;
+
+  switch(obj.type) {
+    case 'tree': {
+      // Trunk
+      ctx.fillStyle = '#3a2a1a';
+      ctx.fillRect(ox + obj.w/2 - 6, oy, 12, obj.h);
+      // Foliage
+      ctx.fillStyle = obj.foliage || '#1a5a1a';
+      ctx.beginPath();
+      ctx.arc(ox + obj.w/2, oy - 10, obj.w/2 + 10, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = obj.foliage ? lighten(obj.foliage, 20) : '#2a6a2a';
+      ctx.beginPath();
+      ctx.arc(ox + obj.w/2 - 8, oy - 15, obj.w/3, 0, Math.PI*2);
+      ctx.fill();
+      break;
+    }
+    case 'dead_tree': {
+      ctx.strokeStyle = '#3a2a1a';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(ox + obj.w/2, oy + obj.h);
+      ctx.lineTo(ox + obj.w/2, oy);
+      ctx.lineTo(ox, oy - 15);
+      ctx.moveTo(ox + obj.w/2, oy + 15);
+      ctx.lineTo(ox + obj.w, oy - 5);
+      ctx.stroke();
+      break;
+    }
+    case 'castle': {
+      ctx.fillStyle = '#4a4a5a';
+      ctx.fillRect(ox, oy, obj.w, obj.h);
+      // Towers
+      ctx.fillRect(ox - 15, oy - 40, 40, obj.h + 40);
+      ctx.fillRect(ox + obj.w - 25, oy - 40, 40, obj.h + 40);
+      // Battlements
+      for(let i = 0; i < 4; i++) {
+        ctx.fillRect(ox - 15 + i*12, oy - 52, 8, 12);
+        ctx.fillRect(ox + obj.w - 25 + i*12, oy - 52, 8, 12);
+      }
+      // Gate
+      ctx.fillStyle = '#2a1a0a';
+      ctx.fillRect(ox + obj.w/2 - 20, oy + obj.h - 50, 40, 50);
+      // Windows
+      ctx.fillStyle = '#d4a017';
+      ctx.fillRect(ox + 40, oy + 30, 12, 15);
+      ctx.fillRect(ox + 100, oy + 30, 12, 15);
+      ctx.fillRect(ox + 160, oy + 30, 12, 15);
+      // Flag
+      ctx.fillStyle = '#cc3333';
+      ctx.fillRect(ox + obj.w/2 - 2, oy - 30, 4, -30);
+      ctx.fillRect(ox + obj.w/2 + 2, oy - 58, 20, 12);
+      break;
+    }
+    case 'house': {
+      ctx.fillStyle = '#5a4a3a';
+      ctx.fillRect(ox, oy, obj.w, obj.h);
+      ctx.fillStyle = obj.roof || '#8a3a1a';
+      ctx.beginPath();
+      ctx.moveTo(ox - 10, oy);
+      ctx.lineTo(ox + obj.w/2, oy - 30);
+      ctx.lineTo(ox + obj.w + 10, oy);
+      ctx.fill();
+      ctx.fillStyle = '#2a1a0a';
+      ctx.fillRect(ox + obj.w/2 - 12, oy + obj.h - 35, 24, 35);
+      ctx.fillStyle = '#d4a017';
+      ctx.fillRect(ox + 15, oy + 20, 10, 12);
+      break;
+    }
+    case 'building': {
+      ctx.fillStyle = '#5a5a6a';
+      ctx.fillRect(ox, oy, obj.w, obj.h);
+      ctx.fillStyle = obj.roof || '#5a2a2a';
+      ctx.beginPath();
+      ctx.moveTo(ox - 10, oy);
+      ctx.lineTo(ox + obj.w/2, oy - 35);
+      ctx.lineTo(ox + obj.w + 10, oy);
+      ctx.fill();
+      ctx.fillStyle = '#2a1a0a';
+      ctx.fillRect(ox + obj.w/2 - 15, oy + obj.h - 40, 30, 40);
+      if(obj.label) {
+        ctx.fillStyle = '#d4a017';
+        ctx.font = '10px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText(obj.label, ox + obj.w/2, oy - 40);
+      }
+      // Windows
+      ctx.fillStyle = '#d4a017';
+      ctx.fillRect(ox + 15, oy + 25, 12, 15);
+      ctx.fillRect(ox + obj.w - 27, oy + 25, 12, 15);
+      break;
+    }
+    case 'river': {
+      const waveOffset = Math.sin(tick * 0.05) * 3;
+      ctx.fillStyle = '#1a3a5a';
+      ctx.fillRect(ox, oy + waveOffset, obj.w, obj.h);
+      ctx.fillStyle = '#2a4a6a';
+      for(let i = 0; i < obj.w; i += 20) {
+        ctx.fillRect(ox + i + Math.sin(tick*0.08+i)*3, oy + waveOffset + 5, 10, 3);
+      }
+      break;
+    }
+    case 'bridge': {
+      ctx.fillStyle = '#5a3a1a';
+      ctx.fillRect(ox, oy, obj.w, obj.h);
+      ctx.fillStyle = '#3a2a0a';
+      ctx.fillRect(ox, oy, obj.w, 3);
+      break;
+    }
+    case 'signpost': {
+      ctx.fillStyle = '#5a3a1a';
+      ctx.fillRect(ox, oy, obj.w, obj.h);
+      ctx.fillStyle = obj.color || '#d4a017';
+      ctx.font = '9px Courier New';
+      ctx.textAlign = 'center';
+      ctx.fillText(obj.text, ox + obj.w/2, oy - 5);
+      break;
+    }
+    case 'rock': {
+      ctx.fillStyle = '#4a4a4a';
+      ctx.beginPath();
+      ctx.ellipse(ox + obj.w/2, oy + obj.h/2, obj.w/2, obj.h/2, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#5a5a5a';
+      ctx.beginPath();
+      ctx.ellipse(ox + obj.w/2 - 3, oy + obj.h/3, obj.w/3, obj.h/3, 0, 0, Math.PI*2);
+      ctx.fill();
+      break;
+    }
+    case 'fountain': {
+      ctx.fillStyle = '#5a5a6a';
+      ctx.fillRect(ox, oy, obj.w, obj.h);
+      ctx.fillStyle = '#2a4a6a';
+      ctx.fillRect(ox + 5, oy + 5, obj.w - 10, obj.h - 15);
+      // Water spray
+      const spray = Math.sin(tick * 0.1) * 5;
+      ctx.fillStyle = '#4a7aaa';
+      ctx.beginPath();
+      ctx.arc(ox + obj.w/2, oy - 5 + spray, 4, 0, Math.PI*2);
+      ctx.fill();
+      break;
+    }
+    case 'statue': {
+      ctx.fillStyle = '#6a6a7a';
+      ctx.fillRect(ox + 5, oy + obj.h - 50, 20, 50);
+      ctx.fillRect(ox, oy + obj.h - 10, 30, 10);
+      ctx.beginPath();
+      ctx.arc(ox + 15, oy + obj.h - 55, 8, 0, Math.PI*2);
+      ctx.fill();
+      break;
+    }
+    case 'wall_section': {
+      ctx.fillStyle = obj.color || '#4a4a5a';
+      ctx.fillRect(ox, oy, obj.w, obj.h);
+      for(let i = 0; i < 5; i++) {
+        ctx.fillRect(ox + (i%2)*20 - 5, oy - 8 + i*0, 12, 8);
+      }
+      break;
+    }
+    case 'ditch': {
+      ctx.fillStyle = '#0a0a0a';
+      ctx.fillRect(ox, oy, obj.w, obj.h);
+      break;
+    }
+    case 'bones': {
+      ctx.fillStyle = '#c8c8aa';
+      ctx.fillRect(ox, oy, obj.w*0.7, 3);
+      ctx.fillRect(ox + 5, oy - 3, 3, 8);
+      ctx.fillRect(ox + 15, oy - 2, 3, 7);
+      break;
+    }
+    case 'skull_pile': {
+      ctx.fillStyle = '#aaa88a';
+      for(let i = 0; i < 4; i++) {
+        ctx.beginPath();
+        ctx.arc(ox + 10 + i*10, oy + obj.h - 8, 7, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = '#222';
+        ctx.fillRect(ox + 8 + i*10, oy + obj.h - 10, 2, 2);
+        ctx.fillRect(ox + 12 + i*10, oy + obj.h - 10, 2, 2);
+        ctx.fillStyle = '#aaa88a';
+      }
+      break;
+    }
+    case 'lava_pool': {
+      const lavaGlow = 0.5 + Math.sin(tick * 0.08) * 0.3;
+      ctx.fillStyle = `rgba(204,51,0,${lavaGlow})`;
+      ctx.fillRect(ox, oy, obj.w, obj.h);
+      ctx.fillStyle = `rgba(255,120,0,${lavaGlow*0.5})`;
+      for(let i = 0; i < obj.w; i += 15) {
+        ctx.beginPath();
+        ctx.arc(ox + i + Math.sin(tick*0.06+i)*4, oy + obj.h/2, 5, 0, Math.PI*2);
+        ctx.fill();
+      }
+      break;
+    }
+    case 'arena_gate': {
+      ctx.fillStyle = '#3a3a5a';
+      ctx.fillRect(ox, oy, 20, obj.h);
+      ctx.fillRect(ox + obj.w - 20, oy, 20, obj.h);
+      ctx.fillRect(ox, oy, obj.w, 25);
+      // Arch
+      ctx.fillStyle = '#d4a017';
+      ctx.font = '14px Courier New';
+      ctx.textAlign = 'center';
+      ctx.fillText('⚔ COMBAT ARENA ⚔', ox + obj.w/2, oy + 16);
+      // Torches on pillars
+      const flicker = Math.sin(tick * 0.15) * 3;
+      ctx.fillStyle = '#ff8800';
+      ctx.beginPath();
+      ctx.arc(ox + 10, oy - 5 + flicker, 6, 0, Math.PI*2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(ox + obj.w - 10, oy - 5 - flicker, 6, 0, Math.PI*2);
+      ctx.fill();
+      break;
+    }
+    case 'arena_pillar': {
+      ctx.fillStyle = obj.color || '#3a3a5a';
+      ctx.fillRect(ox, oy, obj.w, obj.h);
+      ctx.fillStyle = '#d4a017';
+      ctx.fillRect(ox - 3, oy, obj.w + 6, 5);
+      ctx.fillRect(ox - 3, oy + obj.h - 5, obj.w + 6, 5);
+      break;
+    }
+    case 'arena_floor': {
+      ctx.fillStyle = obj.color || '#1a1a3a';
+      ctx.fillRect(ox, oy, obj.w, obj.h);
+      // Grid lines
+      ctx.strokeStyle = '#2a2a4a';
+      ctx.lineWidth = 1;
+      for(let i = 0; i < obj.w; i += 60) {
+        ctx.beginPath();
+        ctx.moveTo(ox + i, oy);
+        ctx.lineTo(ox + i, oy + obj.h);
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'torch': {
+      ctx.fillStyle = '#3a2a1a';
+      ctx.fillRect(ox, oy, obj.w, obj.h);
+      const f1 = Math.sin(tick*0.12 + obj.x)*4;
+      const f2 = Math.cos(tick*0.15 + obj.x)*3;
+      ctx.fillStyle = '#ff6600';
+      ctx.beginPath();
+      ctx.arc(ox + obj.w/2, oy - 5 + f1, 8, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#ffaa00';
+      ctx.beginPath();
+      ctx.arc(ox + obj.w/2 + f2, oy - 8, 4, 0, Math.PI*2);
+      ctx.fill();
+      break;
+    }
+  }
+}
+
+function lighten(hex, amt) {
+  let r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  r = Math.min(255, r+amt); g = Math.min(255, g+amt); b = Math.min(255, b+amt);
+  return `rgb(${r},${g},${b})`;
+}
+
+// ─── GET CURRENT ZONE ───
+function getZone(x) {
+  for(const z of ZONES) { if(x >= z.x && x < z.x + z.w) return z; }
+  return ZONES[ZONES.length - 1];
+}
+
+// ─── DIALOGUE SYSTEM ───
+const dialogueBox = document.getElementById('dialogue-box');
+function openDialogue(npc) {
+  dialogueState = { npc, lineIndex: 0 };
+  showDialogueLine();
+}
+function showDialogueLine() {
+  if(!dialogueState) return;
+  const {npc, lineIndex} = dialogueState;
+  if(lineIndex >= npc.dialogue.length) { closeDialogue(); return; }
+  dialogueBox.style.display = 'block';
+  dialogueBox.querySelector('.speaker').textContent = npc.name;
+  dialogueBox.querySelector('.text').textContent = npc.dialogue[lineIndex];
+  if(npc.isArenaMaster && lineIndex === npc.dialogue.length - 1) {
+    dialogueBox.querySelector('.prompt').textContent = '[E] Continue | [F] Register for Arena | [Q] Close';
+  } else {
+    dialogueBox.querySelector('.prompt').textContent = '[E] Continue | [Q] Close';
+  }
+}
+function advanceDialogue() {
+  if(!dialogueState) return;
+  dialogueState.lineIndex++;
+  showDialogueLine();
+}
+function closeDialogue() {
+  dialogueState = null;
+  dialogueBox.style.display = 'none';
+}
+
+// ─── ZONE LABEL ───
+const zoneLabelEl = document.getElementById('zone-label');
+let lastZoneName = '';
+function showZoneLabel(name) {
+  if(name === lastZoneName) return;
+  lastZoneName = name;
+  zoneLabelEl.textContent = '~ ' + name + ' ~';
+  zoneLabelEl.classList.add('show');
+  setTimeout(() => zoneLabelEl.classList.remove('show'), 2500);
+}
+
+// ─── ARENA REGISTRATION ───
+let registrationOpen = false;
+const combatOverlay = document.getElementById('combat-overlay');
+
+async function registerForArena() {
+  if(player.registered) {
+    showFloatingText('Already registered!', '#d4a017');
+    return;
+  }
+  registrationOpen = true;
+  combatOverlay.style.display = 'block';
+  combatOverlay.innerHTML = `
+    <div style="text-align:center">
+      <div style="color:#d4a017;font-size:16px;margin-bottom:12px">⚔ ARENA REGISTRATION ⚔</div>
+      <div style="margin-bottom:8px;color:#aaa">Choose your combat class:</div>
+      <div style="display:flex;gap:10px;justify-content:center;margin-bottom:12px">
+        <button onclick="selectClass('melee')" style="padding:8px 16px;background:#cc3333;border:2px solid #ff4444;color:#fff;cursor:pointer;font-family:monospace;font-size:13px">⚔ Melee</button>
+        <button onclick="selectClass('ranged')" style="padding:8px 16px;background:#33cc33;border:2px solid #44ff44;color:#fff;cursor:pointer;font-family:monospace;font-size:13px">🏹 Ranged</button>
+        <button onclick="selectClass('magic')" style="padding:8px 16px;background:#3388cc;border:2px solid #44aaff;color:#fff;cursor:pointer;font-family:monospace;font-size:13px">✦ Magic</button>
+      </div>
+      <div style="color:#666;font-size:11px">Press Q to cancel</div>
+    </div>`;
+}
+
+window.selectClass = async function(cls) {
+  const id = 'Player_' + Math.random().toString(36).slice(2,6);
+  try {
+    const res = await fetch(API + '/register', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({agent_id: id, combat_class: cls, prayer_book: 'normal'})
+    });
+    const data = await res.json();
+    if(data.status === 'registered' && data.agent?.agent_id) {
+      player.agent_id = data.agent.agent_id;
+      player.combat_class = cls;
+      player.registered = true;
+      combatOverlay.style.display = 'none';
+      registrationOpen = false;
+      showFloatingText(`Registered as ${cls}! ID: ${id}`, '#33cc33');
+
+      // Update equipment based on class
+      player.equipment = getEquipmentForClass(cls);
+
+      connectWorldSocket();
+      sendWorldUpdate(true);
+
+      // Auto-start a fight with a bot
+      setTimeout(startArenaFight, 1000);
+    } else {
+      showFloatingText(data.error || 'Registration failed!', '#cc3333');
+    }
+  } catch(e) { showFloatingText('Registration failed!', '#cc3333'); }
+};
+
+async function startArenaFight() {
+  // Register a bot opponent
+  const botClasses = ['melee','ranged','magic'];
+  const botClass = botClasses[Math.floor(Math.random()*3)];
+  const botId = 'Bot_' + Math.random().toString(36).slice(2,6);
+
+  await fetch(API+'/register', {method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({agent_id:botId,combat_class:botClass,prayer_book:'ancient_curses'})});
+
+  // Challenge
+  const cRes = await fetch(API+'/challenge', {method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({agent_id:player.agent_id,target_agent_id:botId,wager_amount:100,arena:'duel_arena'})});
+  const cData = await cRes.json();
+  if(cData.error || !cData.challenge?.challenge_id) {
+    showFloatingText(cData.error || 'Challenge failed', '#cc3333');
+    return;
+  }
+
+  // Accept
+  const aRes = await fetch(API+'/accept', {method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({agent_id:botId,challenge_id:cData.challenge.challenge_id})});
+  const aData = await aRes.json();
+  if(aData.error) {
+    showFloatingText(aData.error, '#cc3333');
+    return;
+  }
+
+  if(aData.fight_id) {
+    player.inFight = true;
+    leaveWorldPresence();
+    arenaFight = {
+      fight_id: aData.fight_id,
+      opponent: { id: botId, class: botClass, hp:99, maxHp:99, prayer:99, maxPrayer:99, x: 10800, y: GROUND_Y, facing:-1 },
+      playerArenaX: 10000,
+      tick: 0,
+      status: 'active',
+      round: 1,
+      roundsWon: {p1:0, p2:0},
+      lastNarrative: [],
+    };
+    combatLog = ['Fight started! You vs ' + botId + ' (' + botClass + ')'];
+    showFloatingText('FIGHT!', '#d4a017');
+
+    // Move player to arena center
+    player.x = 10000;
+    runArenaLoop();
+  }
+}
+
+// ─── ARENA COMBAT LOOP ───
+const PLAYER_ATTACKS = {
+  melee: ['godsword_smash','whip_flick','slash','crush','stab'],
+  ranged: ['crossbow_bolt','rapid_shot','longrange_shot','knife_throw','dark_bow_spec'],
+  magic: ['ice_barrage','fire_blast','blood_barrage','entangle','teleblock','vengeance'],
+};
+const PLAYER_SPECIALS = {
+  melee: ['ags_spec','dds_spec','gmaul_spec','vls_spec','claws_spec','none'],
+  ranged: ['dbow_spec','zcb_spec','none'],
+  magic: ['staff_spec','sgs_spec','none'],
+};
+const PLAYER_PRAYERS = {
+  melee: ['protect_magic','deflect_melee','smite','none'],
+  ranged: ['protect_melee','deflect_ranged','smite','none'],
+  magic: ['protect_ranged','deflect_magic','smite','none'],
+};
+const FOODS = ['eat_shark','karambwan','brew_sip','combo_eat','none'];
+
+async function runArenaLoop() {
+  if(!arenaFight || arenaFight.status !== 'active') return;
+
+  // Smart bot AI
+  const botClass = arenaFight.opponent.class;
+  const botAttacks = PLAYER_ATTACKS[botClass];
+  const botSpecials = PLAYER_SPECIALS[botClass];
+  const botPrayers = PLAYER_PRAYERS[botClass];
+
+  const botAttack = botAttacks[Math.floor(Math.random()*botAttacks.length)];
+  const botSpecial = Math.random() < 0.3 ? botSpecials[Math.floor(Math.random()*botSpecials.length)] : 'none';
+  const botPrayer = botPrayers[Math.floor(Math.random()*botPrayers.length)];
+  const botFood = arenaFight.opponent.hp < 40 ? FOODS[Math.floor(Math.random()*FOODS.length)] : 'none';
+
+  // Player auto-action (smart AI too for demo)
+  const pAttacks = PLAYER_ATTACKS[player.combat_class];
+  const pSpecials = PLAYER_SPECIALS[player.combat_class];
+  const pPrayers = PLAYER_PRAYERS[player.combat_class];
+
+  const pAttack = pAttacks[Math.floor(Math.random()*pAttacks.length)];
+  const pSpecial = Math.random() < 0.3 ? pSpecials[Math.floor(Math.random()*pSpecials.length)] : 'none';
+  const pPrayer = pPrayers[Math.floor(Math.random()*pPrayers.length)];
+  const pFood = player.hp < 40 ? FOODS[Math.floor(Math.random()*FOODS.length)] : 'none';
+
+  try {
+    // Submit player action
+    await fetch(API+'/action', {method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({agent_id:player.agent_id,fight_id:arenaFight.fight_id,
+        action:pAttack,special:pSpecial||'none',food:pFood,prayer:pPrayer})});
+
+    // Submit bot action
+    const res = await fetch(API+'/action', {method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({agent_id:arenaFight.opponent.id,fight_id:arenaFight.fight_id,
+        action:botAttack,special:botSpecial||'none',food:botFood,prayer:botPrayer})});
+    const data = await res.json();
+
+    if(data.fight) {
+      const f = data.fight;
+      const tickResult = data.result;
+      const prevPlayerHp = player.hp;
+      const prevOpHp = arenaFight.opponent.hp;
+
+      player.hp = f.p1.hp;
+      player.prayer = f.p1.prayer;
+      arenaFight.opponent.hp = f.p2.hp;
+      arenaFight.opponent.prayer = f.p2.prayer;
+      arenaFight.tick = f.tick;
+      arenaFight.lastNarrative = tickResult?.narrative || '';
+
+      // Spawn hit splats
+      const pDmg = prevPlayerHp - player.hp;
+      const oDmg = prevOpHp - arenaFight.opponent.hp;
+      if(pDmg > 0) { spawnHitsplat(player.x, player.y - 50, pDmg, 'damage'); cam.shake = 5; }
+      if(pDmg < 0) spawnHitsplat(player.x, player.y - 50, Math.abs(pDmg), 'heal');
+      if(oDmg > 0) spawnHitsplat(arenaFight.opponent.x, arenaFight.opponent.y - 50, oDmg, 'damage');
+      if(oDmg < 0) spawnHitsplat(arenaFight.opponent.x, arenaFight.opponent.y - 50, Math.abs(oDmg), 'heal');
+
+      // Attack animations
+      spawnAttackAnimation(player.x, player.y, arenaFight.opponent.x, player.combat_class);
+      spawnAttackAnimation(arenaFight.opponent.x, arenaFight.opponent.y, player.x, arenaFight.opponent.class);
+
+      // Log
+      if(typeof arenaFight.lastNarrative === 'string' && arenaFight.lastNarrative.length > 0) {
+        combatLog.push(`T${tickResult?.tick || arenaFight.tick}: ${arenaFight.lastNarrative}`);
+      }
+      while(combatLog.length > 8) {
+        combatLog.shift();
+      }
+
+      if(f.status === 'round_over' || f.status === 'fight_over') {
+        arenaFight.roundsWon = f.rounds_won;
+        if(f.status === 'fight_over') {
+          arenaFight.status = 'fight_over';
+          const won = f.rounds_won.p1 > f.rounds_won.p2;
+          showFloatingText(won ? 'VICTORY!' : 'DEFEAT!', won ? '#d4a017' : '#cc3333');
+          combatLog.push(won ? '🏆 You won the fight!' : '💀 You lost the fight.');
+          player.hp = player.maxHp;
+          player.prayer = player.maxPrayer;
+          setTimeout(() => {
+            player.inFight = false;
+            arenaFight = null;
+            sendWorldUpdate(true);
+          }, 4000);
+          return;
+        }
+        // Next round
+        arenaFight.round++;
+        await fetch(API+'/next-round', {method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({fight_id:arenaFight.fight_id})});
+        player.hp = player.maxHp;
+        player.prayer = player.maxPrayer;
+        arenaFight.opponent.hp = arenaFight.opponent.maxHp;
+        arenaFight.opponent.prayer = arenaFight.opponent.maxPrayer;
+        combatLog.push(`--- Round ${arenaFight.round} ---`);
+      }
+
+      // Continue fight loop
+      setTimeout(runArenaLoop, 800);
+    }
+  } catch(e) {
+    combatLog.push('Error: ' + e.message);
+    setTimeout(runArenaLoop, 2000);
+  }
+}
+
+function spawnAttackAnimation(fromX, fromY, toX, combatClass) {
+  const color = combatClass==='melee'?'#cc3333':combatClass==='ranged'?'#33cc33':'#3388cc';
+  arenaAnimations.push({
+    x: fromX, y: fromY - 25,
+    tx: toX, ty: fromY - 25,
+    progress: 0, speed: combatClass==='magic'?0.04:combatClass==='ranged'?0.06:0.1,
+    color, type: combatClass,
+  });
+}
+
+function showFloatingText(text, color) {
+  spawnParticle(player.x, player.y - 80, 'text', text, color);
+}
+
+// ─── UPDATE ───
+function update() {
+  tick++;
+
+  // Player movement
+  if(!dialogueState && !registrationOpen) {
+    const speed = keys['shift'] ? 4 : 2;
+    if(keys['a'] || keys['arrowleft']) { player.vx = -speed; player.facing = -1; }
+    else if(keys['d'] || keys['arrowright']) { player.vx = speed; player.facing = 1; }
+    else { player.vx *= 0.8; }
+
+    if((keys[' '] || keys['w'] || keys['arrowup']) && player.onGround) {
+      player.vy = -10;
+      player.onGround = false;
+    }
+
+    // Interact
+    if(keys['e']) {
+      keys['e'] = false;
+      if(dialogueState) { advanceDialogue(); }
+      else {
+        const nearNpc = npcs.find(n => Math.abs(n.x - player.x) < 60);
+        if(nearNpc) openDialogue(nearNpc);
+      }
+    }
+    if(keys['q']) {
+      keys['q'] = false;
+      if(dialogueState) closeDialogue();
+      if(registrationOpen) { combatOverlay.style.display = 'none'; registrationOpen = false; }
+    }
+    if(keys['f']) {
+      keys['f'] = false;
+      const nearArenaMaster = npcs.find(n => n.isArenaMaster && Math.abs(n.x - player.x) < 100);
+      if(nearArenaMaster) registerForArena();
+    }
+  }
+
+  // Physics
+  player.x += player.vx;
+  player.vy += GRAVITY;
+  player.y += player.vy;
+  if(player.y >= GROUND_Y) { player.y = GROUND_Y; player.vy = 0; player.onGround = true; }
+  player.x = Math.max(20, Math.min(WORLD_W - 20, player.x));
+
+  // Walk animation
+  if(Math.abs(player.vx) > 0.5) { player.walkTimer += Math.abs(player.vx) * 0.15; }
+
+  // Camera
+  const targetCamX = player.x - W/2;
+  const targetCamY = Math.min(0, player.y - H/2 + 100);
+  cam.x += (targetCamX - cam.x) * 0.08;
+  cam.y += (targetCamY - cam.y) * 0.08;
+  cam.x = Math.max(0, Math.min(WORLD_W - W, cam.x));
+
+  // Camera shake
+  if(cam.shake > 0) {
+    cam.x += (Math.random()-0.5) * cam.shake * 2;
+    cam.y += (Math.random()-0.5) * cam.shake * 2;
+    cam.shake *= 0.85;
+    if(cam.shake < 0.3) cam.shake = 0;
+  }
+
+  // Zone detection
+  currentZone = getZone(player.x);
+  showZoneLabel(currentZone.name);
+  sendWorldUpdate();
+
+  // Particles
+  particles = particles.filter(p => {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.05;
+    p.life -= 0.02;
+    return p.life > 0;
+  });
+
+  // Arena animations
+  arenaAnimations = arenaAnimations.filter(a => {
+    a.progress += a.speed;
+    return a.progress < 1;
+  });
+
+  // Clouds
+  clouds.forEach(c => { c.x += c.speed; if(c.x > WORLD_W + 200) c.x = -200; });
+}
+
+// ─── RENDER ───
+function render() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Sky gradient based on zone
+  const zone = currentZone;
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, zone.sky);
+  grad.addColorStop(1, zone === ZONES[4] || zone === ZONES[3] ? '#1a0505' : '#0a0a15');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Stars
+  ctx.fillStyle = '#fff';
+  stars.forEach(s => {
+    const sx = s.x - cam.x * 0.1;
+    const twinkle = 0.3 + Math.sin(tick * 0.02 + s.b * 100) * 0.7;
+    ctx.globalAlpha = twinkle * 0.6;
+    ctx.fillRect(sx % W, s.y, s.s, s.s);
+  });
+  ctx.globalAlpha = 1;
+
+  // Clouds
+  ctx.fillStyle = 'rgba(40,40,60,0.3)';
+  clouds.forEach(c => {
+    const cx = c.x - cam.x * 0.3;
+    ctx.beginPath();
+    ctx.ellipse(cx, c.y, c.w/2, 15, 0, 0, Math.PI*2);
+    ctx.fill();
+  });
+
+  // Mountains (parallax)
+  ctx.fillStyle = '#1a1a2a';
+  for(let i = 0; i < W + 200; i += 200) {
+    const mx = i - (cam.x * 0.2) % 200;
+    const mh = 80 + Math.sin(i * 0.01 + 1) * 40;
+    ctx.beginPath();
+    ctx.moveTo(mx, GROUND_Y - cam.y);
+    ctx.lineTo(mx + 100, GROUND_Y - mh - cam.y);
+    ctx.lineTo(mx + 200, GROUND_Y - cam.y);
+    ctx.fill();
+  }
+
+  // Hills (parallax)
+  ctx.fillStyle = '#151525';
+  for(let i = 0; i < W + 300; i += 300) {
+    const hx = i - (cam.x * 0.4) % 300;
+    ctx.beginPath();
+    ctx.arc(hx + 150, GROUND_Y - cam.y + 20, 160, Math.PI, 0);
+    ctx.fill();
+  }
+
+  // Ground — per zone coloring
+  for(const z of ZONES) {
+    const gx = z.x - cam.x;
+    const gy = GROUND_Y - cam.y;
+    if(gx + z.w < 0 || gx > W) continue;
+    // Ground top
+    ctx.fillStyle = z.groundTop;
+    ctx.fillRect(gx, gy, z.w, 6);
+    // Ground body
+    ctx.fillStyle = z.ground;
+    ctx.fillRect(gx, gy + 6, z.w, H - gy);
+  }
+
+  // Zone transition effects
+  if(currentZone.name === 'Wilderness' || currentZone.name === 'Wilderness Border') {
+    // Red vignette
+    const vg = ctx.createRadialGradient(W/2, H/2, H*0.3, W/2, H/2, H);
+    vg.addColorStop(0, 'rgba(0,0,0,0)');
+    vg.addColorStop(1, 'rgba(100,0,0,0.3)');
+    ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // World objects
+  worldObjects.forEach(o => {
+    if(o.x + o.w + 100 > cam.x && o.x - 100 < cam.x + W) drawWorldObject(o);
+  });
+
+  // NPCs
+  npcs.forEach(npc => {
+    if(Math.abs(npc.x - cam.x - W/2) < W) drawNPC(npc);
+  });
+
+  // Other connected agents in the open world
+  worldAgents.forEach((agent) => {
+    if(Math.abs(agent.x - cam.x - W/2) > W) return;
+    const equipment = getEquipmentForClass(agent.combat_class);
+    drawCharacter(agent.x, agent.y, player.x > agent.x ? 1 : -1, tick * 0.08, {
+      body: agent.combat_class === 'melee' ? '#aa3333' : agent.combat_class === 'ranged' ? '#339944' : '#3366aa',
+      hat: agent.combat_class === 'melee' ? '#7a2222' : agent.combat_class === 'ranged' ? '#226622' : '#224477',
+      skin: '#c8a882',
+      legs: '#2a2a3a',
+      arms: agent.combat_class === 'melee' ? '#993333' : agent.combat_class === 'ranged' ? '#2f8b3f' : '#335999',
+    }, 24, 40, equipment);
+
+    drawText(agent.agent_id, agent.x, agent.y - 56, '#66d4ff', 9);
+  });
+
+  // Arena opponent
+  if(arenaFight && arenaFight.opponent) {
+    const op = arenaFight.opponent;
+    const opEquip = getEquipmentForClass(op.class);
+    drawCharacter(op.x, op.y, op.facing, tick*0.1, {
+      body: op.class==='melee'?'#aa3333':op.class==='ranged'?'#33aa33':'#3366aa',
+      hat: op.class==='melee'?'#882222':op.class==='ranged'?'#228822':'#224488',
+      skin:'#b89a72', legs:'#2a2a3a', arms: op.class==='melee'?'#993333':op.class==='ranged'?'#339933':'#335599'
+    }, 24, 40, opEquip);
+
+    // Opponent HP bar
+    const ohx = op.x - cam.x - 20;
+    const ohy = op.y - cam.y - 60;
+    ctx.fillStyle = '#333';
+    ctx.fillRect(ohx, ohy, 40, 5);
+    ctx.fillStyle = op.hp > 30 ? '#33cc33' : '#cc3333';
+    ctx.fillRect(ohx, ohy, 40 * (op.hp/op.maxHp), 5);
+    drawText(op.id, op.x, op.y - 70, '#cc5555', 10);
+  }
+
+  // Arena attack animations
+  arenaAnimations.forEach(a => {
+    const cx = a.x + (a.tx - a.x) * a.progress;
+    const cy = a.y + Math.sin(a.progress * Math.PI) * -30;
+    ctx.fillStyle = a.color;
+    ctx.globalAlpha = 1 - a.progress;
+    if(a.type === 'magic') {
+      ctx.beginPath();
+      ctx.arc(cx - cam.x, cy - cam.y, 8 - a.progress*6, 0, Math.PI*2);
+      ctx.fill();
+      // Trail
+      for(let i = 0; i < 3; i++) {
+        ctx.globalAlpha = (1 - a.progress) * 0.3;
+        ctx.beginPath();
+        ctx.arc(cx - cam.x - (a.tx-a.x)*0.05*i, cy - cam.y + i*2, 4, 0, Math.PI*2);
+        ctx.fill();
+      }
+    } else if(a.type === 'ranged') {
+      ctx.fillRect(cx - cam.x - 6, cy - cam.y - 1, 12, 2);
+    } else {
+      // Melee slash arc
+      ctx.strokeStyle = a.color;
+      ctx.lineWidth = 3;
+      ctx.globalAlpha = 1 - a.progress;
+      ctx.beginPath();
+      ctx.arc(cx - cam.x, cy - cam.y, 15, -Math.PI*a.progress, Math.PI*(1-a.progress));
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  });
+
+  // Player
+  const pColors = {
+    body: player.combat_class==='melee'?'#8a3333':player.combat_class==='ranged'?'#33883a':'#335588',
+    hat: player.combat_class==='melee'?'#6a2222':player.combat_class==='ranged'?'#226622':'#223366',
+    skin: '#c8a882',
+    legs: '#2a2a4a',
+    arms: player.combat_class==='melee'?'#7a3333':player.combat_class==='ranged'?'#33773a':'#334477',
+  };
+  drawCharacter(player.x, player.y, player.facing, player.walkTimer, pColors, 24, 40, player.equipment);
+
+  // Player name
+  if(player.agent_id) {
+    drawText(player.agent_id, player.x, player.y - 55, '#33cc33', 10);
+  }
+
+  // Particles
+  particles.forEach(p => {
+    ctx.globalAlpha = Math.max(0, p.life);
+    if(p.type === 'hitsplat') {
+      // RuneScape-style hitsplat
+      const px = p.x - cam.x;
+      const py = p.y - cam.y;
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.ellipse(px, py, 16, 12, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 12px Courier New';
+      ctx.textAlign = 'center';
+      ctx.fillText(p.text, px, py + 4);
+    } else if(p.type === 'text') {
+      ctx.fillStyle = p.color;
+      ctx.font = 'bold 16px Courier New';
+      ctx.textAlign = 'center';
+      ctx.fillText(p.text, p.x - cam.x, p.y - cam.y);
+    } else {
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x - cam.x - p.size/2, p.y - cam.y - p.size/2, p.size, p.size);
+    }
+    ctx.globalAlpha = 1;
+  });
+
+  // ─── HUD ───
+  renderHUD();
+  renderMinimap();
+  renderCombatLog();
+}
+
+function renderHUD() {
+  hpCtx.clearRect(0, 0, 200, 80);
+
+  // HP bar
+  hpCtx.fillStyle = 'rgba(0,0,0,0.7)';
+  hpCtx.fillRect(0, 0, 200, 80);
+  hpCtx.strokeStyle = '#d4a017';
+  hpCtx.lineWidth = 1;
+  hpCtx.strokeRect(0, 0, 200, 80);
+
+  // HP
+  hpCtx.fillStyle = '#888';
+  hpCtx.font = '10px Courier New';
+  hpCtx.textAlign = 'left';
+  hpCtx.fillText('Hitpoints', 10, 16);
+  hpCtx.fillStyle = '#222';
+  hpCtx.fillRect(10, 20, 180, 14);
+  const hpPct = player.hp / player.maxHp;
+  hpCtx.fillStyle = hpPct > 0.3 ? '#33cc33' : '#cc3333';
+  hpCtx.fillRect(10, 20, 180 * hpPct, 14);
+  hpCtx.fillStyle = '#fff';
+  hpCtx.font = 'bold 10px Courier New';
+  hpCtx.textAlign = 'center';
+  hpCtx.fillText(`${player.hp} / ${player.maxHp}`, 100, 32);
+
+  // Prayer
+  hpCtx.fillStyle = '#888';
+  hpCtx.font = '10px Courier New';
+  hpCtx.textAlign = 'left';
+  hpCtx.fillText('Prayer', 10, 50);
+  hpCtx.fillStyle = '#222';
+  hpCtx.fillRect(10, 54, 180, 14);
+  const prayPct = player.prayer / player.maxPrayer;
+  hpCtx.fillStyle = '#3388cc';
+  hpCtx.fillRect(10, 54, 180 * prayPct, 14);
+  hpCtx.fillStyle = '#fff';
+  hpCtx.font = 'bold 10px Courier New';
+  hpCtx.textAlign = 'center';
+  hpCtx.fillText(`${player.prayer} / ${player.maxPrayer}`, 100, 66);
+}
+
+function renderMinimap() {
+  minimapCtx.clearRect(0, 0, 180, 60);
+  minimapCtx.fillStyle = 'rgba(0,0,0,0.8)';
+  minimapCtx.fillRect(0, 0, 180, 60);
+
+  const scale = 180 / WORLD_W;
+
+  // Zone colors on minimap
+  ZONES.forEach(z => {
+    minimapCtx.fillStyle = z.ground;
+    minimapCtx.fillRect(z.x * scale, 40, z.w * scale, 20);
+  });
+
+  // Zone labels
+  minimapCtx.fillStyle = '#888';
+  minimapCtx.font = '7px Courier New';
+  minimapCtx.textAlign = 'center';
+  ZONES.forEach(z => {
+    minimapCtx.fillText(z.name.split(' ')[0], (z.x + z.w/2) * scale, 12);
+  });
+
+  // NPCs
+  npcs.forEach(n => {
+    minimapCtx.fillStyle = '#d4a017';
+    minimapCtx.fillRect(n.x * scale - 1, 35, 2, 4);
+  });
+
+  // Connected agents
+  worldAgents.forEach(agent => {
+    minimapCtx.fillStyle = '#66d4ff';
+    minimapCtx.fillRect(agent.x * scale - 1, 36, 2, 4);
+  });
+
+  // Player
+  minimapCtx.fillStyle = '#33ff33';
+  minimapCtx.fillRect(player.x * scale - 2, 32, 4, 6);
+
+  // Viewport
+  minimapCtx.strokeStyle = '#d4a017';
+  minimapCtx.lineWidth = 1;
+  minimapCtx.strokeRect(cam.x * scale, 20, W * scale, 30);
+}
+
+function renderCombatLog() {
+  if(!player.inFight || combatLog.length === 0) return;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.75)';
+  ctx.fillRect(10, H - 200, 380, 180);
+  ctx.strokeStyle = '#d4a017';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(10, H - 200, 380, 180);
+
+  ctx.fillStyle = '#d4a017';
+  ctx.font = 'bold 11px Courier New';
+  ctx.textAlign = 'left';
+  ctx.fillText('⚔ Combat Log', 20, H - 183);
+
+  ctx.font = '10px Courier New';
+  const visible = combatLog.slice(-7);
+  visible.forEach((line, i) => {
+    ctx.fillStyle = line.includes('VICTORY') || line.includes('won') ? '#d4a017'
+                  : line.includes('DEFEAT') || line.includes('lost') ? '#cc3333'
+                  : line.startsWith('---') ? '#888' : '#ccc';
+    ctx.fillText(line.slice(0, 55), 20, H - 165 + i * 18);
+  });
+
+  // Round score
+  if(arenaFight) {
+    ctx.fillStyle = '#d4a017';
+    ctx.font = 'bold 12px Courier New';
+    ctx.textAlign = 'right';
+    ctx.fillText(`Round ${arenaFight.round} | You ${arenaFight.roundsWon.p1} - ${arenaFight.roundsWon.p2} Opponent`, 380, H - 183);
+    ctx.fillText(`Tick ${arenaFight.tick}`, 380, H - 168);
+  }
+}
+
+// ─── GAME LOOP ───
+function gameLoop() {
+  update();
+  render();
+  requestAnimationFrame(gameLoop);
+}
+
+window.render_game_to_text = function renderGameToText() {
+  const visibleAgents = [];
+  worldAgents.forEach((agent) => {
+    visibleAgents.push({
+      id: agent.agent_id,
+      class: agent.combat_class,
+      x: agent.x,
+      y: agent.y,
+      zone: agent.zone,
+    });
+  });
+
+  const payload = {
+    coordinate_system: 'origin top-left, +x right, +y down',
+    mode: player.inFight ? 'duel_arena' : 'open_world',
+    player: {
+      id: player.agent_id,
+      class: player.combat_class,
+      x: Math.round(player.x),
+      y: Math.round(player.y),
+      hp: player.hp,
+      prayer: player.prayer,
+      zone: currentZone?.name || null,
+      registered: player.registered,
+    },
+    duel: arenaFight ? {
+      fight_id: arenaFight.fight_id,
+      round: arenaFight.round,
+      tick: arenaFight.tick,
+      score: arenaFight.roundsWon,
+      opponent: {
+        id: arenaFight.opponent.id,
+        class: arenaFight.opponent.class,
+        hp: arenaFight.opponent.hp,
+        prayer: arenaFight.opponent.prayer,
+      },
+      recent_log: combatLog.slice(-4),
+    } : null,
+    open_world_agents: visibleAgents,
+  };
+
+  return JSON.stringify(payload);
+};
+
+window.advanceTime = (ms = 16) => {
+  const frameMs = 1000 / 60;
+  const steps = Math.max(1, Math.round(ms / frameMs));
+  for(let i = 0; i < steps; i++) {
+    update();
+  }
+  render();
+};
+
+gameLoop();
+
+// ─── PREVENT SCROLL ───
+addEventListener('keydown', e => { if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Tab'].includes(e.key)) e.preventDefault(); });
+</script>
+</body>
+</html>

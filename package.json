@@ -1,0 +1,16 @@
+{
+  "name": "runescape-arena",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "lint": "bunx --bun @biomejs/biome lint src --files-ignore-unknown=true --max-diagnostics=200",
+    "test": "bun test",
+    "test:once": "bun test --bail"
+  },
+  "dependencies": {
+    "hono": "^4.4.0",
+    "nanoid": "^5.0.0"
+  }
+}

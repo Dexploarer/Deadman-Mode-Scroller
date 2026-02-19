@@ -40,7 +40,7 @@ canvas{display:block}
   <div id="combat-overlay"></div>
   <div id="controls-help">
     WASD / Arrows — Move &nbsp;|&nbsp; SHIFT — Run &nbsp;|&nbsp; E — Interact &nbsp;|&nbsp; SPACE — Jump<br>
-    TAB — Stats &nbsp;|&nbsp; M — Map
+    F — Register Class &nbsp;|&nbsp; Q — Cancel / Stop Gather
   </div>
   <canvas id="minimap" width="180" height="60"></canvas>
   <div id="minimap-container"></div>
@@ -75,10 +75,19 @@ const WORLD_W = 12000;
 const WORLD_H = 800;
 const GROUND_Y = 520;
 const API = '/api/v1/arena';
+const DEFAULT_AREA_ID = 'surface_main';
+const AREA_WIDTHS = {
+  surface_main: 12000,
+  runecraft_nexus: 3400,
+  wilderness_depths: 3600,
+  shadow_dungeon: 3000,
+  quest_shard: 2200,
+  emirs_arena: 2600,
+};
 
 // ─── INPUT ───
 const keys = {};
-addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; if(['e','q',' ','tab','m'].includes(e.key.toLowerCase())) e.preventDefault(); });
+addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; if(['e','q',' ','tab','m','b'].includes(e.key.toLowerCase())) e.preventDefault(); });
 addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
 // ─── COLORS ───
@@ -93,18 +102,48 @@ const COL = {
 };
 
 // ─── ZONE DEFINITIONS ───
-const ZONES = [
+const SURFACE_ZONES = [
   { name: 'Lumbridge',   x: 0,    w: 2400, sky: COL.lumber_sky, ground: COL.grass,  groundTop: '#2a5a2a', music: 'peaceful' },
   { name: 'Road to Varrock', x: 2400, w: 1200, sky: '#12122a',  ground: COL.dirt,   groundTop: '#5a4a2a', music: 'travel' },
-  { name: 'Varrock',     x: 3600, w: 2400, sky: COL.varrock_sky, ground: COL.stone, groundTop: '#5a5a6a', music: 'town' },
-  { name: 'Wilderness Border', x: 6000, w: 600, sky: '#150808', ground: '#2a1a1a',  groundTop: '#3a2020', music: 'danger' },
-  { name: 'Wilderness',  x: 6600, w: 2400, sky: COL.wild_sky,   ground: COL.wild_ground, groundTop: '#2a1010', music: 'wild' },
-  { name: 'Combat Arena', x: 9000, w: 3000, sky: COL.arena_sky, ground: '#0f0f1a',  groundTop: '#1a1a3a', music: 'arena' },
+  { name: 'Varrock',     x: 3600, w: 2000, sky: COL.varrock_sky, ground: COL.stone, groundTop: '#5a5a6a', music: 'town' },
+  { name: 'Al Kharid',   x: 5600, w: 800,  sky: '#2a1f12',       ground: COL.sand,  groundTop: '#8a6a3a', music: 'desert' },
+  { name: 'Wilderness Border', x: 6400, w: 600, sky: '#150808', ground: '#2a1a1a',  groundTop: '#3a2020', music: 'danger' },
+  { name: 'Wilderness',  x: 7000, w: 2000, sky: COL.wild_sky,   ground: COL.wild_ground, groundTop: '#2a1010', music: 'wild' },
+  { name: 'Emir\'s Arena', x: 9000, w: 3000, sky: COL.arena_sky, ground: '#0f0f1a',  groundTop: '#1a1a3a', music: 'arena' },
 ];
+
+const AREA_ZONES = {
+  surface_main: SURFACE_ZONES,
+  runecraft_nexus: [
+    { name: 'Nexus Gate', x: 0, w: 900, sky: '#0f1730', ground: '#1b2445', groundTop: '#3a4c8a', music: 'mystic' },
+    { name: 'Rune Altars', x: 900, w: 1300, sky: '#111c38', ground: '#1f2a4f', groundTop: '#4f67b0', music: 'mystic' },
+    { name: 'Outer Ring', x: 2200, w: 1200, sky: '#0c1428', ground: '#17213f', groundTop: '#324b87', music: 'mystic' },
+  ],
+  wilderness_depths: [
+    { name: 'Depths Entry', x: 0, w: 800, sky: '#160707', ground: '#220b0b', groundTop: '#4d1f1f', music: 'danger' },
+    { name: 'Skull Ravine', x: 800, w: 1300, sky: '#130505', ground: '#1d0909', groundTop: '#3f1717', music: 'danger' },
+    { name: 'Lava Chasm', x: 2100, w: 1500, sky: '#1a0707', ground: '#1f0a0a', groundTop: '#5a1f1f', music: 'danger' },
+  ],
+  shadow_dungeon: [
+    { name: 'Dungeon Gate', x: 0, w: 900, sky: '#090b12', ground: '#111523', groundTop: '#2b3655', music: 'dungeon' },
+    { name: 'Shadow Halls', x: 900, w: 1100, sky: '#07090f', ground: '#0d1020', groundTop: '#273454', music: 'dungeon' },
+    { name: 'Ancient Vault', x: 2000, w: 1000, sky: '#05070c', ground: '#0a0d17', groundTop: '#23304d', music: 'dungeon' },
+  ],
+  quest_shard: [
+    { name: 'Quest Start', x: 0, w: 800, sky: '#12220f', ground: '#20331f', groundTop: '#3f6d32', music: 'quest' },
+    { name: 'Echo Trial', x: 800, w: 700, sky: '#101f0f', ground: '#1e2f1c', groundTop: '#3a6430', music: 'quest' },
+    { name: 'Instance Exit', x: 1500, w: 700, sky: '#132513', ground: '#233622', groundTop: '#456f39', music: 'quest' },
+  ],
+  emirs_arena: [
+    { name: 'Arena Floor', x: 0, w: 2600, sky: COL.arena_sky, ground: '#0f0f1a', groundTop: '#1a1a3a', music: 'arena' },
+  ],
+};
 
 // ─── WORLD OBJECTS (buildings, trees, decorations) ───
 const worldObjects = [];
-function addObj(type, x, y, w, h, props={}) { worldObjects.push({type, x, y, w, h, ...props}); }
+function addObj(type, x, y, w, h, props={}) {
+  worldObjects.push({ type, x, y, w, h, area_id: props.area_id || DEFAULT_AREA_ID, ...props });
+}
 
 // Lumbridge
 addObj('castle', 200, GROUND_Y - 200, 250, 200, {zone:'Lumbridge'});
@@ -134,20 +173,33 @@ addObj('building', 4850, GROUND_Y - 120, 140, 120, {roof:'#5a4a2a', label:'Sword
 addObj('tree', 5200, GROUND_Y - 100, 60, 100, {foliage:'#2a5a2a'});
 addObj('wall_section', 5560, GROUND_Y - 160, 40, 160, {color:'#4a4a5a'});
 
+// Al Kharid
+addObj('signpost', 5650, GROUND_Y - 60, 10, 60, {text:'← Varrock | Al Kharid →'});
+addObj('house', 5800, GROUND_Y - 95, 120, 95, {roof:'#9a6a2a'});
+addObj('tree', 5480, GROUND_Y - 95, 55, 95, {foliage:'#4a6a2a'});
+addObj('tree', 5560, GROUND_Y - 105, 60, 105, {foliage:'#4a6a2a'});
+addObj('river', 6320, GROUND_Y - 8, 420, 36);
+addObj('duel_portal', 6180, GROUND_Y - 145, 80, 145, {
+  label:'Emir\'s Arena Portal',
+  portal_id:'emirs_arena_portal',
+  portal_kind:'duel_queue',
+  portal_scope:'shared',
+});
+
 // Wilderness Border
-addObj('signpost', 6100, GROUND_Y - 70, 10, 70, {text:'⚠ WILDERNESS ⚠', color:'#cc3333'});
-addObj('ditch', 6300, GROUND_Y - 5, 100, 15);
+addObj('signpost', 6520, GROUND_Y - 70, 10, 70, {text:'⚠ WILDERNESS ⚠', color:'#cc3333'});
+addObj('ditch', 6680, GROUND_Y - 5, 120, 15);
 
 // Wilderness
-addObj('bones', 6800, GROUND_Y - 15, 30, 15);
-addObj('dead_tree', 7000, GROUND_Y - 90, 40, 90);
-addObj('lava_pool', 7300, GROUND_Y - 8, 120, 20);
-addObj('bones', 7600, GROUND_Y - 15, 25, 15);
-addObj('dead_tree', 7900, GROUND_Y - 80, 35, 80);
-addObj('skull_pile', 8200, GROUND_Y - 25, 50, 25);
-addObj('lava_pool', 8500, GROUND_Y - 8, 150, 20);
+addObj('bones', 7120, GROUND_Y - 15, 30, 15);
+addObj('dead_tree', 7320, GROUND_Y - 90, 40, 90);
+addObj('lava_pool', 7600, GROUND_Y - 8, 120, 20);
+addObj('bones', 7900, GROUND_Y - 15, 25, 15);
+addObj('dead_tree', 8200, GROUND_Y - 80, 35, 80);
+addObj('skull_pile', 8500, GROUND_Y - 25, 50, 25);
+addObj('lava_pool', 8800, GROUND_Y - 8, 150, 20);
 
-// Arena
+// Emir's Arena
 addObj('arena_gate', 9100, GROUND_Y - 180, 120, 180);
 addObj('arena_pillar', 9500, GROUND_Y - 150, 30, 150, {color:'#3a3a5a'});
 addObj('arena_floor', 9600, GROUND_Y, 2000, 10, {color:'#1a1a3a'});
@@ -156,6 +208,92 @@ addObj('torch', 9700, GROUND_Y - 100, 15, 100);
 addObj('torch', 10200, GROUND_Y - 100, 15, 100);
 addObj('torch', 10700, GROUND_Y - 100, 15, 100);
 addObj('torch', 11100, GROUND_Y - 100, 15, 100);
+
+// Surface travel portals
+addObj('area_portal', 6040, GROUND_Y - 130, 64, 130, {
+  label:'Rune Nexus',
+  portal_id:'nexus_portal',
+  portal_kind:'travel',
+  portal_scope:'shared',
+  tint:'#4f67ff',
+});
+addObj('area_portal', 6680, GROUND_Y - 130, 64, 130, {
+  label:'Wild Depths',
+  portal_id:'depths_portal',
+  portal_kind:'travel',
+  portal_scope:'shared',
+  tint:'#b03131',
+});
+
+// Runecraft Nexus
+addObj('area_portal', 220, GROUND_Y - 130, 64, 130, {
+  area_id:'runecraft_nexus',
+  label:'Surface',
+  portal_id:'return_surface_from_nexus',
+  portal_kind:'travel',
+  portal_scope:'shared',
+  tint:'#d4a017',
+});
+addObj('area_portal', 1920, GROUND_Y - 130, 64, 130, {
+  area_id:'runecraft_nexus',
+  label:'Quest Shard',
+  portal_id:'quest_portal',
+  portal_kind:'travel',
+  portal_scope:'personal',
+  tint:'#4daa55',
+});
+addObj('area_portal', 2340, GROUND_Y - 130, 64, 130, {
+  area_id:'runecraft_nexus',
+  label:'Shadow Dungeon',
+  portal_id:'shadow_portal',
+  portal_kind:'travel',
+  portal_scope:'shared',
+  tint:'#5566aa',
+});
+addObj('crystal', 980, GROUND_Y - 120, 42, 120, { area_id:'runecraft_nexus', color:'#86a6ff' });
+addObj('crystal', 1140, GROUND_Y - 110, 36, 110, { area_id:'runecraft_nexus', color:'#7f8dff' });
+addObj('crystal', 1460, GROUND_Y - 140, 48, 140, { area_id:'runecraft_nexus', color:'#6c7adf' });
+addObj('crystal', 1640, GROUND_Y - 140, 48, 140, { area_id:'runecraft_nexus', color:'#6f6fcf' });
+
+// Wilderness Depths
+addObj('area_portal', 220, GROUND_Y - 130, 64, 130, {
+  area_id:'wilderness_depths',
+  label:'Surface',
+  portal_id:'return_surface_from_depths',
+  portal_kind:'travel',
+  portal_scope:'shared',
+  tint:'#d4a017',
+});
+addObj('dead_tree', 920, GROUND_Y - 95, 42, 95, { area_id:'wilderness_depths' });
+addObj('lava_pool', 1380, GROUND_Y - 10, 180, 22, { area_id:'wilderness_depths' });
+addObj('skull_pile', 1820, GROUND_Y - 28, 52, 28, { area_id:'wilderness_depths' });
+addObj('lava_pool', 2380, GROUND_Y - 10, 220, 24, { area_id:'wilderness_depths' });
+
+// Shadow Dungeon
+addObj('area_portal', 220, GROUND_Y - 130, 64, 130, {
+  area_id:'shadow_dungeon',
+  label:'Nexus',
+  portal_id:'return_nexus_from_shadow',
+  portal_kind:'travel',
+  portal_scope:'shared',
+  tint:'#d4a017',
+});
+addObj('arena_pillar', 760, GROUND_Y - 150, 36, 150, { area_id:'shadow_dungeon', color:'#2a3148' });
+addObj('arena_pillar', 1320, GROUND_Y - 150, 36, 150, { area_id:'shadow_dungeon', color:'#2a3148' });
+addObj('torch', 1040, GROUND_Y - 100, 15, 100, { area_id:'shadow_dungeon' });
+addObj('torch', 1760, GROUND_Y - 100, 15, 100, { area_id:'shadow_dungeon' });
+
+// Quest shard (personal instance)
+addObj('area_portal', 220, GROUND_Y - 130, 64, 130, {
+  area_id:'quest_shard',
+  label:'Nexus',
+  portal_id:'return_nexus_from_quest',
+  portal_kind:'travel',
+  portal_scope:'shared',
+  tint:'#d4a017',
+});
+addObj('building', 920, GROUND_Y - 130, 150, 130, { area_id:'quest_shard', roof:'#3f6d32', label:'Trial Shrine' });
+addObj('fountain', 1280, GROUND_Y - 56, 80, 56, { area_id:'quest_shard' });
 
 // ─── NPCs ───
 const npcs = [
@@ -169,18 +307,37 @@ const npcs = [
     dialogue:['Welcome to my shop!','I sell swords, armor, and supplies for the arena.','Come back when you\'re ready to gear up.'],
     color:'#aa5533', hat:'#7a3a1a' },
   { id:'guildmaster', name:'Guild Master', x:4420, y:GROUND_Y, zone:'Varrock',
-    dialogue:['The Champions Guild welcomes worthy fighters.','To enter the Arena, head east through the Wilderness.','Only the strongest survive out there...','Register at the Arena to begin your legend.'],
+    dialogue:['The Champions Guild welcomes worthy fighters.','To duel in Emir\'s Arena, head east to Al Kharid.','The portal there links to instanced duels.','Train your skills before risking the Wilderness.'],
     color:'#5533aa', hat:'#3a1a7a' },
   { id:'oziach', name:'Oziach', x:5100, y:GROUND_Y, zone:'Varrock',
-    dialogue:['You want to fight in the Arena?','You\'ll need more than courage. You\'ll need strategy.','Melee beats Ranged. Ranged beats Magic. Magic beats Melee.','Remember the combat triangle, or you\'ll be eating dirt.'],
+    dialogue:['You want to fight in the Arena?','You\'ll need more than courage. You\'ll need strategy.','Melee beats Ranged. Ranged beats Magic. Magic beats Melee.','Level your skills in Al Kharid before you queue.'],
     color:'#886633', hat:'#5a4420' },
-  { id:'wilderness_warning', name:'Border Guard', x:6150, y:GROUND_Y, zone:'Wilderness Border',
-    dialogue:['WARNING: The Wilderness is a dangerous PvP zone!','Beyond this ditch, you may be attacked by other players.','The Combat Arena lies further east. Proceed at your own risk.'],
+  { id:'emir_herald', name:'Emir\'s Herald', x:6210, y:GROUND_Y, zone:'Al Kharid',
+    dialogue:['Welcome to Al Kharid.','This portal connects to Emir\'s Arena instanced duels.','Press [E] near the portal to join the duel queue.','Mining, fishing, and woodcutting nodes nearby grant progression XP.'],
+    color:'#d4a017', hat:'#a07a0a', isQueueNpc: true },
+  { id:'wilderness_warning', name:'Border Guard', x:6550, y:GROUND_Y, zone:'Wilderness Border',
+    dialogue:['WARNING: The Wilderness is a dangerous PvP zone!','Beyond this ditch, you may be attacked by other players.','Emir\'s Arena is west in Al Kharid.'],
     color:'#cc5533', hat:'#993a1a' },
-  { id:'arena_master', name:'Arena Master', x:9200, y:GROUND_Y, zone:'Combat Arena',
-    dialogue:['Welcome to the Combat Arena, warrior!','Here, agents battle for glory and ELO rating.','Press [F] to register and begin fighting.','Choose your combat class wisely — the triangle decides your fate.'],
+  { id:'arena_master', name:'Arena Master', x:9200, y:GROUND_Y, zone:'Emir\'s Arena',
+    dialogue:['Welcome to Emir\'s Arena, warrior!','Here, agents battle for glory and ELO rating.','Queue from the Al Kharid portal to enter your duel instance.','Choose your combat class wisely — the triangle decides your fate.'],
     color:'#d4a017', hat:'#a07a0a', isArenaMaster: true },
+  { id:'rune_sage', name:'Rune Sage', x:1120, y:GROUND_Y, zone:'Rune Altars', area_id:'runecraft_nexus',
+    dialogue:['Welcome to the Runecraft Nexus.','Altars here let you craft runes for the spellbook.','Press [B] to open your spellbook and cast teleports.','Portals here branch into dungeons and private quest shards.'],
+    color:'#6688ff', hat:'#4466cc' },
+  { id:'depths_watcher', name:'Depths Watcher', x:980, y:GROUND_Y, zone:'Skull Ravine', area_id:'wilderness_depths',
+    dialogue:['This is deeper Wilderness territory.','Here, everyone is fair game: humans and autonomous agents alike.','Use portals or teleports to rotate quickly between hotspots.'],
+    color:'#aa4444', hat:'#772222' },
+  { id:'shadow_keeper', name:'Shadow Keeper', x:920, y:GROUND_Y, zone:'Shadow Halls', area_id:'shadow_dungeon',
+    dialogue:['The Shadow Dungeon is a layered portal region.','Add more dungeon portals here to keep expanding the world.','This area is shared multiplayer by default.'],
+    color:'#6d7fa8', hat:'#445577' },
+  { id:'quest_oracle', name:'Quest Oracle', x:980, y:GROUND_Y, zone:'Echo Trial', area_id:'quest_shard',
+    dialogue:['This shard is your personal quest instance.','Only your agent can occupy this instance id.','Use the return portal when your trial is complete.'],
+    color:'#5aa55a', hat:'#2e6a2e' },
 ];
+
+npcs.forEach((npc) => {
+  if(!npc.area_id) npc.area_id = DEFAULT_AREA_ID;
+});
 
 // ─── PLAYER ───
 const player = {
@@ -192,14 +349,39 @@ const player = {
   combat_class: 'melee', agent_id: null,
   registered: false,
   inArena: false, inFight: false,
+  area_id: DEFAULT_AREA_ID,
+  instance_id: null,
+  skills: {},
+  inventory: {},
+  spellbook: [],
   equipment: { weapon: 'godsword', armor: 'torva', cape: 'fire' },
 };
 
 // ─── CAMERA ───
 const cam = { x: 0, y: 0, shake: 0 };
 
+function getAreaZones(areaId = player.area_id || DEFAULT_AREA_ID) {
+  return AREA_ZONES[areaId] || AREA_ZONES[DEFAULT_AREA_ID];
+}
+
+function getAreaWidth(areaId = player.area_id || DEFAULT_AREA_ID) {
+  return AREA_WIDTHS[areaId] || WORLD_W;
+}
+
+function toShard(areaId, instanceId) {
+  return {
+    area_id: areaId || DEFAULT_AREA_ID,
+    instance_id: instanceId || null,
+  };
+}
+
+function isSameShard(areaId, instanceId) {
+  const current = toShard(player.area_id, player.instance_id);
+  return current.area_id === (areaId || DEFAULT_AREA_ID) && current.instance_id === (instanceId || null);
+}
+
 // ─── GAME STATE ───
-let currentZone = ZONES[0];
+let currentZone = getAreaZones()[0];
 let dialogueState = null; // {npc, lineIndex}
 let particles = [];
 let tick = 0;
@@ -212,7 +394,14 @@ let arenaAnimations = [];
 let combatLog = [];
 let worldWs = null;
 const worldAgents = new Map();
-const worldBroadcastState = { at: 0, x: 0, y: 0, zone: '' };
+const worldBroadcastState = { at: 0, x: 0, y: 0, zone: '', area_id: DEFAULT_AREA_ID, instance_id: null };
+const resourceNodes = new Map();
+let duelQueue = [];
+let queuedForDuel = false;
+let skillActionNodeId = null;
+let registrationOpen = false;
+let arenaLoopTimer = null;
+let worldReturnPoint = null;
 
 function getEquipmentForClass(combatClass) {
   if(combatClass === 'melee') return { weapon: 'godsword', armor: 'torva', cape: 'fire' };
@@ -229,25 +418,76 @@ function connectWorldSocket() {
   if(worldWs && (worldWs.readyState === WebSocket.OPEN || worldWs.readyState === WebSocket.CONNECTING)) return;
   worldWs = new WebSocket(getWorldSocketUrl());
   worldWs.onopen = () => {
-    worldWs.send(JSON.stringify({ type: 'world_subscribe' }));
+    worldWs.send(JSON.stringify({
+      type: 'world_subscribe',
+      area_id: player.area_id || DEFAULT_AREA_ID,
+      instance_id: player.instance_id || null,
+    }));
+    worldWs.send(JSON.stringify({ type: 'duel_queue_subscribe' }));
+    if(player.agent_id) {
+      worldWs.send(JSON.stringify({ type: 'skill_subscribe', agent_id: player.agent_id }));
+    }
     sendWorldUpdate(true);
   };
   worldWs.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
       if(data.type === 'world_state' && Array.isArray(data.agents)) {
+        if(data.area_id) player.area_id = data.area_id;
+        player.instance_id = data.instance_id || null;
         worldAgents.clear();
         data.agents.forEach(agent => {
-          if(agent.agent_id !== player.agent_id) worldAgents.set(agent.agent_id, agent);
+          if(agent.agent_id !== player.agent_id) {
+            worldAgents.set(agent.agent_id, agent);
+          }
         });
+        if(Array.isArray(data.nodes)) {
+          resourceNodes.clear();
+          data.nodes.forEach(node => resourceNodes.set(node.node_id, node));
+        }
       }
       if(data.type === 'world_update' && data.agent?.agent_id) {
-        if(data.agent.agent_id !== player.agent_id) {
+        if(data.agent.agent_id !== player.agent_id && isSameShard(data.agent.area_id, data.agent.instance_id)) {
           worldAgents.set(data.agent.agent_id, data.agent);
+        } else if(data.agent.agent_id !== player.agent_id) {
+          worldAgents.delete(data.agent.agent_id);
         }
       }
       if(data.type === 'world_leave' && typeof data.agent_id === 'string') {
         worldAgents.delete(data.agent_id);
+      }
+      if(data.type === 'resource_node_update' && data.node?.node_id) {
+        resourceNodes.set(data.node.node_id, data.node);
+      }
+      if(data.type === 'duel_queue_update' && Array.isArray(data.queue)) {
+        duelQueue = data.queue;
+        queuedForDuel = !!(player.agent_id && duelQueue.some(entry => entry.agent_id === player.agent_id));
+      }
+      if(data.type === 'duel_match_found' && player.agent_id && (data.p1 === player.agent_id || data.p2 === player.agent_id)) {
+        queuedForDuel = false;
+        startArenaFightFromMatch(data.fight_id);
+      }
+      if(data.type === 'tick_update' && arenaFight && data.fight_id === arenaFight.fight_id && data.state) {
+        applyFightUpdate(data.state, data.result);
+      }
+      if(data.type === 'skill_xp' && data.gain) {
+        const gain = data.gain;
+        const skillState = player.skills[gain.skill] || { level: 1, xp: 0 };
+        skillState.level = gain.new_level;
+        skillState.xp = gain.total_xp;
+        player.skills[gain.skill] = skillState;
+        if(gain.gained_xp > 0) {
+          showFloatingText(`+${gain.gained_xp} ${gain.skill} xp`, '#66d4ff');
+        }
+      }
+      if(data.type === 'skill_level_up' && data.skill) {
+        showFloatingText(`${data.skill} ${data.new_level}!`, '#d4a017');
+      }
+      if(data.type === 'inventory_update' && data.item_id) {
+        player.inventory[data.item_id] = data.qty;
+      }
+      if(data.type === 'world_interact_result' && data.ok === false && data.payload?.error) {
+        showFloatingText(data.payload.error, '#cc3333');
       }
     } catch {}
   };
@@ -264,10 +504,13 @@ function sendWorldUpdate(force = false) {
 
   const now = Date.now();
   const zoneName = currentZone?.name || getZone(player.x).name;
+  const areaId = player.area_id || DEFAULT_AREA_ID;
+  const instanceId = player.instance_id || null;
   const movedFar = Math.hypot(player.x - worldBroadcastState.x, player.y - worldBroadcastState.y) > 16;
   const zoneChanged = zoneName !== worldBroadcastState.zone;
+  const shardChanged = areaId !== worldBroadcastState.area_id || instanceId !== worldBroadcastState.instance_id;
   const intervalElapsed = now - worldBroadcastState.at > 140;
-  if(!force && !movedFar && !zoneChanged && !intervalElapsed) return;
+  if(!force && !movedFar && !zoneChanged && !shardChanged && !intervalElapsed) return;
 
   worldWs.send(JSON.stringify({
     type: 'world_update',
@@ -276,12 +519,16 @@ function sendWorldUpdate(force = false) {
     x: Math.round(player.x),
     y: Math.round(player.y),
     zone: zoneName,
+    area_id: areaId,
+    instance_id: instanceId,
   }));
 
   worldBroadcastState.at = now;
   worldBroadcastState.x = player.x;
   worldBroadcastState.y = player.y;
   worldBroadcastState.zone = zoneName;
+  worldBroadcastState.area_id = areaId;
+  worldBroadcastState.instance_id = instanceId;
 }
 
 function leaveWorldPresence() {
@@ -633,7 +880,7 @@ function drawWorldObject(obj) {
       ctx.fillStyle = '#d4a017';
       ctx.font = '14px Courier New';
       ctx.textAlign = 'center';
-      ctx.fillText('⚔ COMBAT ARENA ⚔', ox + obj.w/2, oy + 16);
+      ctx.fillText('⚔ EMIR\'S ARENA ⚔', ox + obj.w/2, oy + 16);
       // Torches on pillars
       const flicker = Math.sin(tick * 0.15) * 3;
       ctx.fillStyle = '#ff8800';
@@ -682,6 +929,59 @@ function drawWorldObject(obj) {
       ctx.fill();
       break;
     }
+    case 'duel_portal': {
+      const pulse = 0.6 + Math.sin(tick * 0.08) * 0.3;
+      ctx.fillStyle = '#3a244f';
+      ctx.fillRect(ox + 20, oy + 24, 40, obj.h - 24);
+      ctx.fillStyle = `rgba(125,85,255,${pulse})`;
+      ctx.beginPath();
+      ctx.ellipse(ox + obj.w/2, oy + obj.h/2 - 10, 26, 58, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#d4a017';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(ox + 18, oy + 20, 44, obj.h - 20);
+      ctx.fillStyle = '#d4a017';
+      ctx.font = '10px Courier New';
+      ctx.textAlign = 'center';
+      ctx.fillText('EMIR\'S', ox + obj.w / 2, oy + 14);
+      ctx.fillText('PORTAL', ox + obj.w / 2, oy + obj.h + 14);
+      break;
+    }
+    case 'area_portal': {
+      const pulse = 0.55 + Math.sin(tick * 0.08 + obj.x * 0.01) * 0.25;
+      const tint = obj.tint || '#4f67ff';
+      ctx.fillStyle = '#2a2a44';
+      ctx.fillRect(ox + 10, oy + 20, obj.w - 20, obj.h - 20);
+      ctx.fillStyle = tint;
+      ctx.globalAlpha = pulse;
+      ctx.beginPath();
+      ctx.ellipse(ox + obj.w/2, oy + obj.h/2 - 6, 18, 48, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = '#d4a017';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(ox + 8, oy + 16, obj.w - 16, obj.h - 16);
+      ctx.fillStyle = '#d4a017';
+      ctx.font = '9px Courier New';
+      ctx.textAlign = 'center';
+      ctx.fillText((obj.label || 'Portal').toUpperCase().slice(0, 12), ox + obj.w / 2, oy + obj.h + 14);
+      break;
+    }
+    case 'crystal': {
+      ctx.fillStyle = obj.color || '#7f8dff';
+      ctx.beginPath();
+      ctx.moveTo(ox + obj.w/2, oy);
+      ctx.lineTo(ox + obj.w, oy + obj.h*0.35);
+      ctx.lineTo(ox + obj.w*0.74, oy + obj.h);
+      ctx.lineTo(ox + obj.w*0.26, oy + obj.h);
+      ctx.lineTo(ox, oy + obj.h*0.35);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#d4e1ff';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      break;
+    }
   }
 }
 
@@ -693,8 +993,9 @@ function lighten(hex, amt) {
 
 // ─── GET CURRENT ZONE ───
 function getZone(x) {
-  for(const z of ZONES) { if(x >= z.x && x < z.x + z.w) return z; }
-  return ZONES[ZONES.length - 1];
+  const zones = getAreaZones();
+  for(const z of zones) { if(x >= z.x && x < z.x + z.w) return z; }
+  return zones[zones.length - 1];
 }
 
 // ─── DIALOGUE SYSTEM ───
@@ -738,7 +1039,6 @@ function showZoneLabel(name) {
 }
 
 // ─── ARENA REGISTRATION ───
-let registrationOpen = false;
 const combatOverlay = document.getElementById('combat-overlay');
 
 async function registerForArena() {
@@ -773,6 +1073,8 @@ window.selectClass = async function(cls) {
       player.agent_id = data.agent.agent_id;
       player.combat_class = cls;
       player.registered = true;
+      player.area_id = DEFAULT_AREA_ID;
+      player.instance_id = null;
       combatOverlay.style.display = 'none';
       registrationOpen = false;
       showFloatingText(`Registered as ${cls}! ID: ${id}`, '#33cc33');
@@ -782,61 +1084,264 @@ window.selectClass = async function(cls) {
 
       connectWorldSocket();
       sendWorldUpdate(true);
-
-      // Auto-start a fight with a bot
-      setTimeout(startArenaFight, 1000);
+      await loadProfile();
+      await fetchResourceNodes();
     } else {
       showFloatingText(data.error || 'Registration failed!', '#cc3333');
     }
   } catch(e) { showFloatingText('Registration failed!', '#cc3333'); }
 };
 
-async function startArenaFight() {
-  // Register a bot opponent
-  const botClasses = ['melee','ranged','magic'];
-  const botClass = botClasses[Math.floor(Math.random()*3)];
-  const botId = 'Bot_' + Math.random().toString(36).slice(2,6);
+function setWorldStateFromServer(world) {
+  if(!world) return;
+  if(typeof world.x === 'number') player.x = world.x;
+  if(typeof world.y === 'number') player.y = world.y;
+  player.area_id = world.area_id || DEFAULT_AREA_ID;
+  player.instance_id = world.instance_id || null;
+  worldAgents.clear();
+  resourceNodes.clear();
+  currentZone = getZone(player.x);
+  if(worldWs && worldWs.readyState === WebSocket.OPEN) {
+    worldWs.send(JSON.stringify({
+      type:'world_subscribe',
+      area_id: player.area_id,
+      instance_id: player.instance_id,
+    }));
+  }
+}
 
-  await fetch(API+'/register', {method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({agent_id:botId,combat_class:botClass,prayer_book:'ancient_curses'})});
+async function loadProfile() {
+  if(!player.agent_id) return;
+  try {
+    const res = await fetch('/api/v1/profile/' + player.agent_id);
+    if(!res.ok) return;
+    const data = await res.json();
+    player.skills = data.progress?.skills || player.skills;
+    player.inventory = data.progress?.inventory || player.inventory;
+    queuedForDuel = !!data.queue;
+    if(data.world) {
+      setWorldStateFromServer(data.world);
+    }
+  } catch {}
+}
 
-  // Challenge
-  const cRes = await fetch(API+'/challenge', {method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({agent_id:player.agent_id,target_agent_id:botId,wager_amount:100,arena:'duel_arena'})});
-  const cData = await cRes.json();
-  if(cData.error || !cData.challenge?.challenge_id) {
-    showFloatingText(cData.error || 'Challenge failed', '#cc3333');
+async function fetchResourceNodes() {
+  try {
+    const areaId = encodeURIComponent(player.area_id || DEFAULT_AREA_ID);
+    const instanceParam = player.instance_id ? `&instance_id=${encodeURIComponent(player.instance_id)}` : '';
+    const res = await fetch(`/api/v1/world/nodes?area_id=${areaId}${instanceParam}`);
+    if(!res.ok) return;
+    const nodes = await res.json();
+    if(Array.isArray(nodes)) {
+      resourceNodes.clear();
+      nodes.forEach(node => resourceNodes.set(node.node_id, node));
+    }
+  } catch {}
+}
+
+function openDuelQueueOverlay() {
+  if(!player.registered || !player.agent_id) {
+    registerForArena();
     return;
   }
 
-  // Accept
-  const aRes = await fetch(API+'/accept', {method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({agent_id:botId,challenge_id:cData.challenge.challenge_id})});
-  const aData = await aRes.json();
-  if(aData.error) {
-    showFloatingText(aData.error, '#cc3333');
+  registrationOpen = true;
+  combatOverlay.style.display = 'block';
+  combatOverlay.innerHTML = `
+    <div style="text-align:center">
+      <div style="color:#d4a017;font-size:16px;margin-bottom:10px">⚔ EMIR'S ARENA QUEUE ⚔</div>
+      <div style="margin-bottom:8px;color:#aaa">${queuedForDuel ? 'You are currently queued for a duel.' : 'Join the queue to find a duel.'}</div>
+      <div style="display:flex;gap:10px;justify-content:center;margin-bottom:10px">
+        <button onclick="joinDuelQueue()" style="padding:8px 16px;background:#2c7;border:2px solid #4fa;color:#fff;cursor:pointer;font-family:monospace;font-size:13px">Join Queue</button>
+        <button onclick="leaveDuelQueue()" style="padding:8px 16px;background:#933;border:2px solid #c55;color:#fff;cursor:pointer;font-family:monospace;font-size:13px">Leave Queue</button>
+      </div>
+      <div style="color:#888;font-size:11px">Queue size: ${duelQueue.length}</div>
+      <div style="color:#666;font-size:11px;margin-top:6px">Press Q to close</div>
+    </div>`;
+}
+
+window.joinDuelQueue = async function() {
+  if(!player.agent_id) return;
+  try {
+    const res = await fetch('/api/v1/world/portal/use', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        agent_id: player.agent_id,
+        portal_id: 'emirs_arena_portal',
+        arena: 'duel_arena',
+      })
+    });
+    const data = await res.json();
+    if(res.ok) {
+      queuedForDuel = true;
+      showFloatingText(`Queued (${data.queue_size})`, '#d4a017');
+      openDuelQueueOverlay();
+    } else {
+      showFloatingText(data.error || 'Queue failed', '#cc3333');
+    }
+  } catch(e) {
+    showFloatingText('Queue failed', '#cc3333');
+  }
+};
+
+window.leaveDuelQueue = async function() {
+  if(!player.agent_id) return;
+  try {
+    const res = await fetch('/api/v1/arena/queue/leave', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ agent_id: player.agent_id })
+    });
+    await res.json();
+    queuedForDuel = false;
+    showFloatingText('Left queue', '#999');
+    openDuelQueueOverlay();
+  } catch {}
+};
+
+async function openSpellbookOverlay() {
+  if(!player.agent_id) {
+    registerForArena();
     return;
   }
 
-  if(aData.fight_id) {
+  try {
+    const res = await fetch('/api/v1/world/spellbook/' + player.agent_id);
+    const data = await res.json();
+    if(!res.ok) {
+      showFloatingText(data.error || 'Spellbook unavailable', '#cc3333');
+      return;
+    }
+    player.spellbook = data.spells || [];
+    registrationOpen = true;
+    combatOverlay.style.display = 'block';
+    combatOverlay.innerHTML = `
+      <div style=\"text-align:left;max-height:360px;overflow:auto;min-width:520px\">
+        <div style=\"text-align:center;color:#7fa1ff;font-size:16px;margin-bottom:10px\">✦ SPELLBOOK ✦</div>
+        <div style=\"color:#aaa;margin-bottom:8px\">Magic: ${data.magic_level} | Runecrafting: ${data.runecrafting_level}</div>
+        <div style=\"display:grid;grid-template-columns:1fr;gap:6px\">
+          ${(data.spells || []).map((spell) => {
+            const runes = spell.runes.map((r) => `${r.item_id.replace('_',' ')} ${r.qty_owned}/${r.qty_required}`).join(' • ');
+            const buttonLabel = spell.teleport ? 'Cast Teleport' : 'Cast';
+            const disabled = spell.can_cast ? '' : 'disabled';
+            const bg = spell.can_cast ? '#294d9f' : '#333';
+            return `<div style=\"border:1px solid #445;padding:8px;background:rgba(20,20,40,.75)\">
+              <div style=\"display:flex;justify-content:space-between;align-items:center;gap:10px\">
+                <div>
+                  <div style=\"color:#d4e1ff;font-size:13px\">${spell.spell}</div>
+                  <div style=\"color:#9ab0ff;font-size:11px\">Requires magic ${spell.magic_level_required}</div>
+                  <div style=\"color:#8a8a9a;font-size:11px\">${runes}</div>
+                </div>
+                <button onclick=\"castSpell('${spell.spell}')\" ${disabled} style=\"padding:6px 10px;background:${bg};border:1px solid #678;color:#fff;cursor:pointer;font-family:monospace;font-size:11px\">${buttonLabel}</button>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+        <div style=\"text-align:center;color:#666;font-size:11px;margin-top:8px\">Press Q or B to close</div>
+      </div>`;
+  } catch {
+    showFloatingText('Spellbook unavailable', '#cc3333');
+  }
+}
+
+window.castSpell = async function(spellName) {
+  if(!player.agent_id) return;
+  try {
+    const res = await fetch('/api/v1/world/spell/cast', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ agent_id: player.agent_id, spell: spellName }),
+    });
+    const data = await res.json();
+    if(!res.ok) {
+      showFloatingText(data.error || 'Spell failed', '#cc3333');
+      return;
+    }
+
+    if(data.inventory) player.inventory = data.inventory;
+    if(data.gain?.skill) {
+      const existing = player.skills[data.gain.skill] || { level: 1, xp: 0 };
+      existing.level = data.gain.new_level;
+      existing.xp = data.gain.total_xp;
+      player.skills[data.gain.skill] = existing;
+      showFloatingText(`${spellName} cast`, '#7fa1ff');
+    }
+    if(data.world) {
+      setWorldStateFromServer(data.world);
+      await fetchResourceNodes();
+      sendWorldUpdate(true);
+      showZoneLabel(getZone(player.x)?.name || 'Unknown');
+    }
+    await openSpellbookOverlay();
+  } catch {
+    showFloatingText('Spell failed', '#cc3333');
+  }
+};
+
+async function startArenaFightFromMatch(fightId) {
+  if(!fightId || !player.agent_id) return;
+  try {
+    if(skillActionNodeId) {
+      fetch('/api/v1/world/interact', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({agent_id:player.agent_id,node_id:skillActionNodeId,action:'stop'})
+      }).catch(()=>{});
+      skillActionNodeId = null;
+    }
+
+    const res = await fetch(API + '/fight/' + fightId);
+    if(!res.ok) return;
+    const fight = await res.json();
+
+    const isP1 = fight.p1.agent_id === player.agent_id;
+    const opponentState = isP1 ? fight.p2 : fight.p1;
+    const selfState = isP1 ? fight.p1 : fight.p2;
+
     player.inFight = true;
-    leaveWorldPresence();
-    arenaFight = {
-      fight_id: aData.fight_id,
-      opponent: { id: botId, class: botClass, hp:99, maxHp:99, prayer:99, maxPrayer:99, x: 10800, y: GROUND_Y, facing:-1 },
-      playerArenaX: 10000,
-      tick: 0,
-      status: 'active',
-      round: 1,
-      roundsWon: {p1:0, p2:0},
-      lastNarrative: [],
+    worldReturnPoint = {
+      x: player.x,
+      y: player.y,
+      area_id: player.area_id || DEFAULT_AREA_ID,
+      instance_id: player.instance_id || null,
     };
-    combatLog = ['Fight started! You vs ' + botId + ' (' + botClass + ')'];
-    showFloatingText('FIGHT!', '#d4a017');
+    leaveWorldPresence();
 
-    // Move player to arena center
+    arenaFight = {
+      fight_id: fightId,
+      opponent: {
+        id: opponentState.agent_id,
+        class: opponentState.combat_class,
+        hp: opponentState.hp,
+        maxHp: 99,
+        prayer: opponentState.prayer,
+        maxPrayer: 99,
+        x: 10800,
+        y: GROUND_Y,
+        facing: -1,
+      },
+      playerSlot: isP1 ? 'p1' : 'p2',
+      tick: fight.tick || 0,
+      status: 'active',
+      round: fight.round || 1,
+      roundsWon: fight.rounds_won || { p1: 0, p2: 0 },
+      lastNarrative: '',
+    };
+
+    player.hp = selfState.hp;
+    player.prayer = selfState.prayer;
     player.x = 10000;
+    combatLog = [`Fight started! ${player.agent_id} vs ${opponentState.agent_id}`];
+    showFloatingText('MATCH FOUND', '#d4a017');
+
+    if(worldWs && worldWs.readyState === WebSocket.OPEN) {
+      worldWs.send(JSON.stringify({ type: 'spectate', fight_id: fightId }));
+    }
+
     runArenaLoop();
+  } catch(e) {
+    showFloatingText('Failed to start duel', '#cc3333');
   }
 }
 
@@ -852,27 +1357,21 @@ const PLAYER_SPECIALS = {
   magic: ['staff_spec','sgs_spec','none'],
 };
 const PLAYER_PRAYERS = {
-  melee: ['protect_magic','deflect_melee','smite','none'],
-  ranged: ['protect_melee','deflect_ranged','smite','none'],
-  magic: ['protect_ranged','deflect_magic','smite','none'],
+  melee: ['protect_magic','smite','piety','none'],
+  ranged: ['protect_melee','smite','rigour','none'],
+  magic: ['protect_ranged','smite','augury','none'],
 };
 const FOODS = ['eat_shark','karambwan','brew_sip','combo_eat','none'];
+
+function scheduleNextArenaLoop(ms = 800) {
+  if(arenaLoopTimer) clearTimeout(arenaLoopTimer);
+  arenaLoopTimer = setTimeout(runArenaLoop, ms);
+}
 
 async function runArenaLoop() {
   if(!arenaFight || arenaFight.status !== 'active') return;
 
-  // Smart bot AI
-  const botClass = arenaFight.opponent.class;
-  const botAttacks = PLAYER_ATTACKS[botClass];
-  const botSpecials = PLAYER_SPECIALS[botClass];
-  const botPrayers = PLAYER_PRAYERS[botClass];
-
-  const botAttack = botAttacks[Math.floor(Math.random()*botAttacks.length)];
-  const botSpecial = Math.random() < 0.3 ? botSpecials[Math.floor(Math.random()*botSpecials.length)] : 'none';
-  const botPrayer = botPrayers[Math.floor(Math.random()*botPrayers.length)];
-  const botFood = arenaFight.opponent.hp < 40 ? FOODS[Math.floor(Math.random()*FOODS.length)] : 'none';
-
-  // Player auto-action (smart AI too for demo)
+  // Player auto-action
   const pAttacks = PLAYER_ATTACKS[player.combat_class];
   const pSpecials = PLAYER_SPECIALS[player.combat_class];
   const pPrayers = PLAYER_PRAYERS[player.combat_class];
@@ -883,83 +1382,131 @@ async function runArenaLoop() {
   const pFood = player.hp < 40 ? FOODS[Math.floor(Math.random()*FOODS.length)] : 'none';
 
   try {
-    // Submit player action
-    await fetch(API+'/action', {method:'POST',headers:{'Content-Type':'application/json'},
+    const actionRes = await fetch(API+'/action', {method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({agent_id:player.agent_id,fight_id:arenaFight.fight_id,
         action:pAttack,special:pSpecial||'none',food:pFood,prayer:pPrayer})});
+    const actionData = await actionRes.json();
 
-    // Submit bot action
-    const res = await fetch(API+'/action', {method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({agent_id:arenaFight.opponent.id,fight_id:arenaFight.fight_id,
-        action:botAttack,special:botSpecial||'none',food:botFood,prayer:botPrayer})});
-    const data = await res.json();
+    // If queue fallback produced a bot, this client drives bot turns.
+    if(arenaFight.opponent.id.startsWith('QueueBot_')) {
+      const botClass = arenaFight.opponent.class;
+      const botAttacks = PLAYER_ATTACKS[botClass];
+      const botSpecials = PLAYER_SPECIALS[botClass];
+      const botPrayers = PLAYER_PRAYERS[botClass];
+      const botAttack = botAttacks[Math.floor(Math.random()*botAttacks.length)];
+      const botSpecial = Math.random() < 0.3 ? botSpecials[Math.floor(Math.random()*botSpecials.length)] : 'none';
+      const botPrayer = botPrayers[Math.floor(Math.random()*botPrayers.length)];
+      const botFood = arenaFight.opponent.hp < 40 ? FOODS[Math.floor(Math.random()*FOODS.length)] : 'none';
 
-    if(data.fight) {
-      const f = data.fight;
-      const tickResult = data.result;
-      const prevPlayerHp = player.hp;
-      const prevOpHp = arenaFight.opponent.hp;
-
-      player.hp = f.p1.hp;
-      player.prayer = f.p1.prayer;
-      arenaFight.opponent.hp = f.p2.hp;
-      arenaFight.opponent.prayer = f.p2.prayer;
-      arenaFight.tick = f.tick;
-      arenaFight.lastNarrative = tickResult?.narrative || '';
-
-      // Spawn hit splats
-      const pDmg = prevPlayerHp - player.hp;
-      const oDmg = prevOpHp - arenaFight.opponent.hp;
-      if(pDmg > 0) { spawnHitsplat(player.x, player.y - 50, pDmg, 'damage'); cam.shake = 5; }
-      if(pDmg < 0) spawnHitsplat(player.x, player.y - 50, Math.abs(pDmg), 'heal');
-      if(oDmg > 0) spawnHitsplat(arenaFight.opponent.x, arenaFight.opponent.y - 50, oDmg, 'damage');
-      if(oDmg < 0) spawnHitsplat(arenaFight.opponent.x, arenaFight.opponent.y - 50, Math.abs(oDmg), 'heal');
-
-      // Attack animations
-      spawnAttackAnimation(player.x, player.y, arenaFight.opponent.x, player.combat_class);
-      spawnAttackAnimation(arenaFight.opponent.x, arenaFight.opponent.y, player.x, arenaFight.opponent.class);
-
-      // Log
-      if(typeof arenaFight.lastNarrative === 'string' && arenaFight.lastNarrative.length > 0) {
-        combatLog.push(`T${tickResult?.tick || arenaFight.tick}: ${arenaFight.lastNarrative}`);
-      }
-      while(combatLog.length > 8) {
-        combatLog.shift();
-      }
-
-      if(f.status === 'round_over' || f.status === 'fight_over') {
-        arenaFight.roundsWon = f.rounds_won;
-        if(f.status === 'fight_over') {
-          arenaFight.status = 'fight_over';
-          const won = f.rounds_won.p1 > f.rounds_won.p2;
-          showFloatingText(won ? 'VICTORY!' : 'DEFEAT!', won ? '#d4a017' : '#cc3333');
-          combatLog.push(won ? '🏆 You won the fight!' : '💀 You lost the fight.');
-          player.hp = player.maxHp;
-          player.prayer = player.maxPrayer;
-          setTimeout(() => {
-            player.inFight = false;
-            arenaFight = null;
-            sendWorldUpdate(true);
-          }, 4000);
-          return;
+      const res = await fetch(API+'/action', {method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({agent_id:arenaFight.opponent.id,fight_id:arenaFight.fight_id,
+          action:botAttack,special:botSpecial||'none',food:botFood,prayer:botPrayer})});
+      const data = await res.json();
+      if(data.fight) {
+        const hasResolved = data.result && typeof data.result.tick === 'number';
+        const advanced = typeof data.fight.tick === 'number' && arenaFight && data.fight.tick > arenaFight.tick;
+        if(hasResolved || advanced) {
+          applyFightUpdate(data.fight, data.result || data.fight.last_result || null);
         }
-        // Next round
-        arenaFight.round++;
-        await fetch(API+'/next-round', {method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({fight_id:arenaFight.fight_id})});
-        player.hp = player.maxHp;
-        player.prayer = player.maxPrayer;
-        arenaFight.opponent.hp = arenaFight.opponent.maxHp;
-        arenaFight.opponent.prayer = arenaFight.opponent.maxPrayer;
-        combatLog.push(`--- Round ${arenaFight.round} ---`);
       }
-
-      // Continue fight loop
-      setTimeout(runArenaLoop, 800);
+    } else if(actionData.fight) {
+      const hasResolved = actionData.result && typeof actionData.result.tick === 'number';
+      const advanced = typeof actionData.fight.tick === 'number' && arenaFight && actionData.fight.tick > arenaFight.tick;
+      if(hasResolved || advanced) {
+        applyFightUpdate(actionData.fight, actionData.result || actionData.fight.last_result || null);
+      }
+    } else {
+      // For real PvP, state arrives via websocket tick_update. Poll fallback:
+      const stateRes = await fetch(API + '/fight/' + arenaFight.fight_id);
+      if(stateRes.ok) {
+        const state = await stateRes.json();
+        applyFightUpdate(state, state.last_result || null, false);
+      }
     }
   } catch(e) {
     combatLog.push('Error: ' + e.message);
-    setTimeout(runArenaLoop, 2000);
+  }
+
+  if(arenaFight && arenaFight.status === 'active') {
+    scheduleNextArenaLoop(800);
+  }
+}
+
+function applyFightUpdate(f, tickResult, allowRoundTransition = true) {
+  if(!arenaFight || !f) return;
+
+  const isP1 = f.p1.agent_id === player.agent_id;
+  const selfState = isP1 ? f.p1 : f.p2;
+  const oppState = isP1 ? f.p2 : f.p1;
+  const prevTick = arenaFight.tick;
+
+  const prevPlayerHp = player.hp;
+  const prevOpHp = arenaFight.opponent.hp;
+
+  player.hp = selfState.hp;
+  player.prayer = selfState.prayer;
+  arenaFight.opponent.hp = oppState.hp;
+  arenaFight.opponent.prayer = oppState.prayer;
+  arenaFight.tick = f.tick;
+  arenaFight.round = f.round;
+  arenaFight.roundsWon = f.rounds_won;
+  arenaFight.lastNarrative = tickResult?.narrative || '';
+
+  const hasFreshTick = !!tickResult && typeof tickResult.tick === 'number' && tickResult.tick > prevTick;
+
+  // Spawn hit splats only on fresh tick resolves.
+  const pDmg = prevPlayerHp - player.hp;
+  const oDmg = prevOpHp - arenaFight.opponent.hp;
+  if(hasFreshTick) {
+    if(pDmg > 0) { spawnHitsplat(player.x, player.y - 50, pDmg, 'damage'); cam.shake = 5; }
+    if(pDmg < 0) spawnHitsplat(player.x, player.y - 50, Math.abs(pDmg), 'heal');
+    if(oDmg > 0) spawnHitsplat(arenaFight.opponent.x, arenaFight.opponent.y - 50, oDmg, 'damage');
+    if(oDmg < 0) spawnHitsplat(arenaFight.opponent.x, arenaFight.opponent.y - 50, Math.abs(oDmg), 'heal');
+
+    spawnAttackAnimation(player.x, player.y, arenaFight.opponent.x, player.combat_class);
+    spawnAttackAnimation(arenaFight.opponent.x, arenaFight.opponent.y, player.x, arenaFight.opponent.class);
+  }
+
+  if(hasFreshTick && typeof arenaFight.lastNarrative === 'string' && arenaFight.lastNarrative.length > 0) {
+    combatLog.push(`T${tickResult.tick}: ${arenaFight.lastNarrative}`);
+  }
+  while(combatLog.length > 8) combatLog.shift();
+
+  if(f.status === 'fight_over') {
+    arenaFight.status = 'fight_over';
+    const won = (isP1 ? f.rounds_won.p1 : f.rounds_won.p2) > (isP1 ? f.rounds_won.p2 : f.rounds_won.p1);
+    showFloatingText(won ? 'VICTORY!' : 'DEFEAT!', won ? '#d4a017' : '#cc3333');
+    combatLog.push(won ? '🏆 You won the fight!' : '💀 You lost the fight.');
+    if(arenaLoopTimer) clearTimeout(arenaLoopTimer);
+    setTimeout(() => {
+      player.inFight = false;
+      arenaFight = null;
+      player.hp = player.maxHp;
+      player.prayer = player.maxPrayer;
+      if(worldReturnPoint) {
+        player.x = worldReturnPoint.x;
+        player.y = worldReturnPoint.y;
+        player.area_id = worldReturnPoint.area_id;
+        player.instance_id = worldReturnPoint.instance_id;
+        worldReturnPoint = null;
+      }
+      if(worldWs && worldWs.readyState === WebSocket.OPEN) {
+        worldWs.send(JSON.stringify({
+          type:'world_subscribe',
+          area_id: player.area_id || DEFAULT_AREA_ID,
+          instance_id: player.instance_id || null,
+        }));
+        fetchResourceNodes().catch(()=>{});
+        sendWorldUpdate(true);
+      }
+    }, 3500);
+    return;
+  }
+
+  if(f.status === 'round_over' && allowRoundTransition) {
+    combatLog.push(`--- Round ${f.round + 1} ---`);
+    fetch(API+'/next-round', {method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({fight_id:arenaFight.fight_id})}).catch(()=>{});
   }
 }
 
@@ -977,9 +1524,125 @@ function showFloatingText(text, color) {
   spawnParticle(player.x, player.y - 80, 'text', text, color);
 }
 
+function getNearestResourceNode(maxDist = 90) {
+  let best = null;
+  let bestDist = Infinity;
+  resourceNodes.forEach(node => {
+    if(!isSameShard(node.area_id, node.instance_id)) return;
+    const depleted = node.depleted_until && node.depleted_until > Date.now();
+    if(depleted) return;
+    const d = Math.abs(node.x - player.x);
+    if(d < maxDist && d < bestDist) {
+      best = node;
+      bestDist = d;
+    }
+  });
+  return best;
+}
+
+async function toggleResourceInteraction(node) {
+  if(!player.agent_id) return;
+  try {
+    if(skillActionNodeId === node.node_id) {
+      await fetch('/api/v1/world/interact', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({agent_id:player.agent_id,node_id:node.node_id,action:'stop'})
+      });
+      skillActionNodeId = null;
+      showFloatingText('Stopped gathering', '#999');
+      return;
+    }
+
+    const res = await fetch('/api/v1/world/interact', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({agent_id:player.agent_id,node_id:node.node_id,action:'start'})
+    });
+    const data = await res.json();
+    if(res.ok) {
+      skillActionNodeId = node.node_id;
+      showFloatingText(`${node.skill}...`, '#66d4ff');
+    } else {
+      showFloatingText(data.error || 'Cannot gather', '#cc3333');
+    }
+  } catch {
+    showFloatingText('Interaction failed', '#cc3333');
+  }
+}
+
+function getNearbyPortalObject(maxDist = 110) {
+  let best = null;
+  let bestDist = Infinity;
+  for(const obj of worldObjects) {
+    const areaId = obj.area_id || DEFAULT_AREA_ID;
+    if(areaId !== (player.area_id || DEFAULT_AREA_ID)) continue;
+    if(!obj.portal_id) continue;
+    const centerX = obj.x + obj.w / 2;
+    const d = Math.abs(centerX - player.x);
+    if(d < maxDist && d < bestDist) {
+      best = obj;
+      bestDist = d;
+    }
+  }
+  return best;
+}
+
+async function useWorldPortal(portalObj) {
+  if(!player.agent_id || !portalObj?.portal_id) return;
+  try {
+    const res = await fetch('/api/v1/world/portal/use', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        agent_id: player.agent_id,
+        portal_id: portalObj.portal_id,
+        scope: portalObj.portal_scope || 'shared',
+        arena: portalObj.portal_kind === 'duel_queue' ? 'duel_arena' : undefined,
+      }),
+    });
+    const data = await res.json();
+    if(!res.ok) {
+      showFloatingText(data.error || 'Portal failed', '#cc3333');
+      return;
+    }
+    if(data.status === 'portal_queued') {
+      queuedForDuel = true;
+      showFloatingText(`Queued (${data.queue_size})`, '#d4a017');
+      openDuelQueueOverlay();
+      return;
+    }
+    if(data.world) {
+      setWorldStateFromServer(data.world);
+      await fetchResourceNodes();
+      sendWorldUpdate(true);
+      showZoneLabel(getZone(player.x)?.name || 'New Area');
+      showFloatingText(`Entered ${data.area?.name || 'new area'}`, '#66d4ff');
+    }
+  } catch {
+    showFloatingText('Portal failed', '#cc3333');
+  }
+}
+
+function isNearDuelPortal() {
+  const portal = getNearbyPortalObject(120);
+  return !!(portal && portal.portal_kind === 'duel_queue');
+}
+
 // ─── UPDATE ───
 function update() {
   tick++;
+
+  if(keys['q'] && registrationOpen) {
+    keys['q'] = false;
+    combatOverlay.style.display = 'none';
+    registrationOpen = false;
+  }
+  if(keys['b'] && registrationOpen) {
+    keys['b'] = false;
+    combatOverlay.style.display = 'none';
+    registrationOpen = false;
+  }
 
   // Player movement
   if(!dialogueState && !registrationOpen) {
@@ -998,18 +1661,51 @@ function update() {
       keys['e'] = false;
       if(dialogueState) { advanceDialogue(); }
       else {
-        const nearNpc = npcs.find(n => Math.abs(n.x - player.x) < 60);
-        if(nearNpc) openDialogue(nearNpc);
+        const nearbyNode = getNearestResourceNode();
+        const nearbyPortal = getNearbyPortalObject();
+        if(nearbyNode && !player.inFight) {
+          toggleResourceInteraction(nearbyNode);
+        } else if(nearbyPortal && !player.inFight) {
+          if(nearbyPortal.portal_kind === 'duel_queue') openDuelQueueOverlay();
+          else useWorldPortal(nearbyPortal);
+        } else {
+          const nearNpc = npcs.find(n =>
+            (n.area_id || DEFAULT_AREA_ID) === (player.area_id || DEFAULT_AREA_ID) &&
+            Math.abs(n.x - player.x) < 60
+          );
+          if(nearNpc) openDialogue(nearNpc);
+        }
       }
     }
     if(keys['q']) {
       keys['q'] = false;
       if(dialogueState) closeDialogue();
       if(registrationOpen) { combatOverlay.style.display = 'none'; registrationOpen = false; }
+      if(skillActionNodeId && player.agent_id) {
+        fetch('/api/v1/world/interact', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({agent_id:player.agent_id,node_id:skillActionNodeId,action:'stop'})
+        }).catch(()=>{});
+        skillActionNodeId = null;
+      }
+    }
+    if(keys['b']) {
+      keys['b'] = false;
+      if(registrationOpen) {
+        combatOverlay.style.display = 'none';
+        registrationOpen = false;
+      } else {
+        openSpellbookOverlay();
+      }
     }
     if(keys['f']) {
       keys['f'] = false;
-      const nearArenaMaster = npcs.find(n => n.isArenaMaster && Math.abs(n.x - player.x) < 100);
+      const nearArenaMaster = npcs.find(n =>
+        n.isArenaMaster &&
+        (n.area_id || DEFAULT_AREA_ID) === (player.area_id || DEFAULT_AREA_ID) &&
+        Math.abs(n.x - player.x) < 100
+      );
       if(nearArenaMaster) registerForArena();
     }
   }
@@ -1019,7 +1715,8 @@ function update() {
   player.vy += GRAVITY;
   player.y += player.vy;
   if(player.y >= GROUND_Y) { player.y = GROUND_Y; player.vy = 0; player.onGround = true; }
-  player.x = Math.max(20, Math.min(WORLD_W - 20, player.x));
+  const areaWidth = getAreaWidth();
+  player.x = Math.max(20, Math.min(areaWidth - 20, player.x));
 
   // Walk animation
   if(Math.abs(player.vx) > 0.5) { player.walkTimer += Math.abs(player.vx) * 0.15; }
@@ -1029,7 +1726,7 @@ function update() {
   const targetCamY = Math.min(0, player.y - H/2 + 100);
   cam.x += (targetCamX - cam.x) * 0.08;
   cam.y += (targetCamY - cam.y) * 0.08;
-  cam.x = Math.max(0, Math.min(WORLD_W - W, cam.x));
+  cam.x = Math.max(0, Math.min(areaWidth - W, cam.x));
 
   // Camera shake
   if(cam.shake > 0) {
@@ -1071,7 +1768,7 @@ function render() {
   const zone = currentZone;
   const grad = ctx.createLinearGradient(0, 0, 0, H);
   grad.addColorStop(0, zone.sky);
-  grad.addColorStop(1, zone === ZONES[4] || zone === ZONES[3] ? '#1a0505' : '#0a0a15');
+  grad.addColorStop(1, zone.name === 'Wilderness' || zone.name === 'Wilderness Border' ? '#1a0505' : '#0a0a15');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
 
@@ -1116,7 +1813,8 @@ function render() {
   }
 
   // Ground — per zone coloring
-  for(const z of ZONES) {
+  const zones = getAreaZones();
+  for(const z of zones) {
     const gx = z.x - cam.x;
     const gy = GROUND_Y - cam.y;
     if(gx + z.w < 0 || gx > W) continue;
@@ -1140,13 +1838,65 @@ function render() {
 
   // World objects
   worldObjects.forEach(o => {
+    const areaId = o.area_id || DEFAULT_AREA_ID;
+    if(areaId !== (player.area_id || DEFAULT_AREA_ID)) return;
     if(o.x + o.w + 100 > cam.x && o.x - 100 < cam.x + W) drawWorldObject(o);
+  });
+
+  // Resource nodes
+  resourceNodes.forEach(node => {
+    if(Math.abs(node.x - cam.x - W / 2) > W) return;
+    const nx = node.x - cam.x;
+    const ny = GROUND_Y - cam.y - 10;
+    const depleted = node.depleted_until && node.depleted_until > Date.now();
+    const isActive = skillActionNodeId === node.node_id;
+    const skillColor = node.skill === 'mining'
+      ? '#b0b0b0'
+      : node.skill === 'fishing'
+      ? '#44aaff'
+      : node.skill === 'runecrafting'
+      ? '#7f8dff'
+      : '#66aa44';
+
+    ctx.fillStyle = depleted ? '#444' : skillColor;
+    ctx.beginPath();
+    ctx.arc(nx, ny, depleted ? 8 : 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = isActive ? '#d4a017' : '#222';
+    ctx.lineWidth = isActive ? 2 : 1;
+    ctx.stroke();
+
+    const near = Math.abs(node.x - player.x) < 85 && !player.inFight;
+    if(near) {
+      ctx.fillStyle = '#d4a017';
+      ctx.font = '9px Courier New';
+      ctx.textAlign = 'center';
+      const suffix = depleted ? ' (depleted)' : '';
+      ctx.fillText(`${node.skill} ${node.level_required}+${suffix}`, nx, ny - 16);
+      if(!depleted) {
+        ctx.fillStyle = '#999';
+        ctx.fillText('[E] Gather', nx, ny - 27);
+      }
+    }
   });
 
   // NPCs
   npcs.forEach(npc => {
+    const areaId = npc.area_id || DEFAULT_AREA_ID;
+    if(areaId !== (player.area_id || DEFAULT_AREA_ID)) return;
     if(Math.abs(npc.x - cam.x - W/2) < W) drawNPC(npc);
   });
+
+  // Portal hint
+  const nearbyPortal = getNearbyPortalObject(120);
+  if(nearbyPortal && !player.inFight) {
+    ctx.fillStyle = '#d4a017';
+    ctx.font = '11px Courier New';
+    ctx.textAlign = 'center';
+    const centerX = nearbyPortal.x + nearbyPortal.w / 2;
+    const label = nearbyPortal.portal_kind === 'duel_queue' ? '[E] Duel Queue' : `[E] ${nearbyPortal.label || 'Use Portal'}`;
+    ctx.fillText(label, centerX - cam.x, GROUND_Y - cam.y - 170);
+  }
 
   // Other connected agents in the open world
   worldAgents.forEach((agent) => {
@@ -1308,10 +2058,12 @@ function renderMinimap() {
   minimapCtx.fillStyle = 'rgba(0,0,0,0.8)';
   minimapCtx.fillRect(0, 0, 180, 60);
 
-  const scale = 180 / WORLD_W;
+  const areaWidth = getAreaWidth();
+  const scale = 180 / areaWidth;
+  const zones = getAreaZones();
 
   // Zone colors on minimap
-  ZONES.forEach(z => {
+  zones.forEach(z => {
     minimapCtx.fillStyle = z.ground;
     minimapCtx.fillRect(z.x * scale, 40, z.w * scale, 20);
   });
@@ -1320,12 +2072,13 @@ function renderMinimap() {
   minimapCtx.fillStyle = '#888';
   minimapCtx.font = '7px Courier New';
   minimapCtx.textAlign = 'center';
-  ZONES.forEach(z => {
+  zones.forEach(z => {
     minimapCtx.fillText(z.name.split(' ')[0], (z.x + z.w/2) * scale, 12);
   });
 
   // NPCs
   npcs.forEach(n => {
+    if((n.area_id || DEFAULT_AREA_ID) !== (player.area_id || DEFAULT_AREA_ID)) return;
     minimapCtx.fillStyle = '#d4a017';
     minimapCtx.fillRect(n.x * scale - 1, 35, 2, 4);
   });
@@ -1398,6 +2151,19 @@ window.render_game_to_text = function renderGameToText() {
     });
   });
 
+  const visibleNodes = [];
+  resourceNodes.forEach((node) => {
+    if(Math.abs(node.x - player.x) < 800) {
+      visibleNodes.push({
+        id: node.node_id,
+        type: node.type,
+        skill: node.skill,
+        level_required: node.level_required,
+        depleted: !!(node.depleted_until && node.depleted_until > Date.now()),
+      });
+    }
+  });
+
   const payload = {
     coordinate_system: 'origin top-left, +x right, +y down',
     mode: player.inFight ? 'duel_arena' : 'open_world',
@@ -1409,7 +2175,11 @@ window.render_game_to_text = function renderGameToText() {
       hp: player.hp,
       prayer: player.prayer,
       zone: currentZone?.name || null,
+      area_id: player.area_id || DEFAULT_AREA_ID,
+      instance_id: player.instance_id || null,
       registered: player.registered,
+      queued_for_duel: queuedForDuel,
+      active_skill_node: skillActionNodeId,
     },
     duel: arenaFight ? {
       fight_id: arenaFight.fight_id,
@@ -1425,6 +2195,7 @@ window.render_game_to_text = function renderGameToText() {
       recent_log: combatLog.slice(-4),
     } : null,
     open_world_agents: visibleAgents,
+    resource_nodes: visibleNodes,
   };
 
   return JSON.stringify(payload);
@@ -1439,6 +2210,7 @@ window.advanceTime = (ms = 16) => {
   render();
 };
 
+fetchResourceNodes();
 gameLoop();
 
 // ─── PREVENT SCROLL ───

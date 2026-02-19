@@ -1,7 +1,6 @@
 import type {
   AttackAction, AttackDef, SpecDef, SpecialAction, PrayerAction, FoodAction,
-  MovementAction, PlayerState, FoodInventory, CombatClass, ActionSubmission,
-  TickResult, Fight, StatProfile,
+  PlayerState, CombatClass, TickResult, Fight, StatProfile,
 } from "./types";
 import { STAT_PROFILES } from "./types";
 
@@ -45,10 +44,6 @@ function rand(min: number, max: number): number {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function clamp(val: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, val));
-}
-
 // Combat triangle: returns accuracy modifier
 function triangleModifier(attacker: CombatClass, defender: CombatClass): number {
   if (attacker === defender) return 1.0;
@@ -76,18 +71,45 @@ function accuracyRoll(
 }
 
 // ── Prayer Resolution ──
+function normalizePrayerAction(prayer: PrayerAction): PrayerAction {
+  if (prayer === "deflect_melee") return "protect_melee";
+  if (prayer === "deflect_ranged") return "protect_ranged";
+  if (prayer === "deflect_magic") return "protect_magic";
+  return prayer;
+}
+
 function getPrayerDamageReduction(activePrayer: PrayerAction, incomingCategory: CombatClass): number {
   const protectionMap: Record<string, CombatClass> = {
-    protect_melee: "melee", protect_ranged: "ranged", protect_magic: "magic",
-    deflect_melee: "melee", deflect_ranged: "ranged", deflect_magic: "magic",
+    protect_melee: "melee",
+    protect_ranged: "ranged",
+    protect_magic: "magic",
   };
-  const protects = protectionMap[activePrayer];
+  const protects = protectionMap[normalizePrayerAction(activePrayer)];
   if (protects === incomingCategory) return 0.4;
   return 0;
 }
 
-function isDeflectPrayer(prayer: PrayerAction): boolean {
-  return prayer.startsWith("deflect_");
+function getPrayerDrain(prayer: PrayerAction): number {
+  const normalized = normalizePrayerAction(prayer);
+  if (normalized === "none") return 0;
+  if (normalized.startsWith("protect_")) return 4;
+  if (normalized === "smite") return 6;
+  if (normalized === "piety" || normalized === "rigour" || normalized === "augury") return 5;
+  return 4;
+}
+
+function getOffensivePrayerModifiers(prayer: PrayerAction, category: CombatClass): { accuracy: number; damage: number } {
+  const normalized = normalizePrayerAction(prayer);
+  if (normalized === "piety" && category === "melee") {
+    return { accuracy: 1.2, damage: 1.23 };
+  }
+  if (normalized === "rigour" && category === "ranged") {
+    return { accuracy: 1.2, damage: 1.23 };
+  }
+  if (normalized === "augury" && category === "magic") {
+    return { accuracy: 1.25, damage: 1.04 };
+  }
+  return { accuracy: 1, damage: 1 };
 }
 
 // ── Food Resolution ──
@@ -126,8 +148,8 @@ function resolveSpecial(
   spec: SpecialAction,
   attacker: PlayerState,
   defender: PlayerState,
-  attackerStats: StatProfile,
-  defenderStats: StatProfile,
+  _attackerStats: StatProfile,
+  _defenderStats: StatProfile,
 ): { totalDamage: number; healed: number; prayerRestored: number; effects: string[] } {
   if (spec === "none") return { totalDamage: 0, healed: 0, prayerRestored: 0, effects: [] };
 
@@ -189,13 +211,13 @@ function resolveSpecial(
 
 // ── Normal Attack Resolution ──
 function resolveAttack(
-  action: AttackAction,
+  action: AttackAction | "none",
   attacker: PlayerState,
   defender: PlayerState,
   attackerStats: StatProfile,
   defenderStats: StatProfile,
 ): { damage: number; effects: string[] } {
-  if (action === "none" as any) return { damage: 0, effects: [] };
+  if (action === "none") return { damage: 0, effects: [] };
 
   const atk = ATTACKS[action];
   if (!atk) return { damage: 0, effects: [] };
@@ -212,11 +234,14 @@ function resolveAttack(
   else attackerLevel = attackerStats.magic;
 
   const triMod = triangleModifier(atk.category, defender.combat_class);
-  const hit = accuracyRoll(atk.accuracyBonus, attackerLevel, defenderStats.defence, triMod);
+  const prayerMods = getOffensivePrayerModifiers(attacker.active_prayer, atk.category);
+  const effectiveAcc = Math.floor(atk.accuracyBonus * prayerMods.accuracy);
+  const hit = accuracyRoll(effectiveAcc, attackerLevel, defenderStats.defence, triMod);
 
   if (!hit) return { damage: 0, effects: ["splash"] };
 
   let damage = rand(atk.minDmg, atk.maxDmg);
+  damage = Math.floor(damage * prayerMods.damage);
 
   // Prayer reduction
   const reduction = getPrayerDamageReduction(defender.active_prayer, atk.category);
@@ -224,12 +249,6 @@ function resolveAttack(
     damage = Math.floor(damage * (1 - reduction));
     effects.push("prayer_blocked");
 
-    // Deflect reflect
-    if (isDeflectPrayer(defender.active_prayer)) {
-      const reflected = Math.floor(damage * 0.1);
-      attacker.hp -= reflected;
-      effects.push(`reflected_${reflected}`);
-    }
   }
 
   // Bolt proc (25% chance for crossbow)
@@ -287,8 +306,11 @@ function resolveAttack(
 
 // ── Tick Resolution ──
 export function resolveTick(fight: Fight): TickResult {
-  const p1a = fight.pending_actions.p1!;
-  const p2a = fight.pending_actions.p2!;
+  const p1a = fight.pending_actions.p1;
+  const p2a = fight.pending_actions.p2;
+  if (!p1a || !p2a) {
+    throw new Error("resolveTick requires both pending actions");
+  }
   const p1 = fight.p1;
   const p2 = fight.p2;
 
@@ -302,18 +324,14 @@ export function resolveTick(fight: Fight): TickResult {
   const narrativeParts: string[] = [];
 
   // 1. Prayer activation
-  p1.active_prayer = p1a.prayer || "none";
-  p2.active_prayer = p2a.prayer || "none";
-  if (p1.active_prayer !== "none") p1.prayer -= 5;
-  if (p2.active_prayer !== "none") p2.prayer -= 5;
+  p1.active_prayer = normalizePrayerAction(p1a.prayer || "none");
+  p2.active_prayer = normalizePrayerAction(p2a.prayer || "none");
+  p1.prayer -= getPrayerDrain(p1.active_prayer);
+  p2.prayer -= getPrayerDrain(p2.active_prayer);
   p1.prayer = Math.max(0, p1.prayer);
   p2.prayer = Math.max(0, p2.prayer);
   if (p1.prayer <= 0) p1.active_prayer = "none";
   if (p2.prayer <= 0) p2.active_prayer = "none";
-
-  // Smite processing
-  if (p1a.prayer === "smite") p1.prayer -= 5; // extra drain for offensive
-  if (p2a.prayer === "smite") p2.prayer -= 5;
 
   // 2. Food consumption
   const p1Food = resolveFood(p1, p1a.food || "none");
@@ -372,7 +390,7 @@ export function resolveTick(fight: Fight): TickResult {
 
   // 5. Normal attacks (only if no spec used and not delayed)
   if ((p1a.special || "none") === "none" && p1.attack_delay <= 0) {
-    const p1Atk = resolveAttack(p1a.action || ("none" as any), p1, p2, p1Stats, p2Stats);
+    const p1Atk = resolveAttack(p1a.action || "none", p1, p2, p1Stats, p2Stats);
     if (p1Atk.damage > 0) {
       p2.hp -= p1Atk.damage;
       p1DmgDealt += p1Atk.damage;
@@ -382,7 +400,7 @@ export function resolveTick(fight: Fight): TickResult {
     }
   }
   if ((p2a.special || "none") === "none" && p2.attack_delay <= 0) {
-    const p2Atk = resolveAttack(p2a.action || ("none" as any), p2, p1, p2Stats, p1Stats);
+    const p2Atk = resolveAttack(p2a.action || "none", p2, p1, p2Stats, p1Stats);
     if (p2Atk.damage > 0) {
       p1.hp -= p2Atk.damage;
       p2DmgDealt += p2Atk.damage;

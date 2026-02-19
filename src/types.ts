@@ -3,11 +3,55 @@ export type CombatClass = "melee" | "ranged" | "magic";
 export type PrayerBook = "normal" | "ancient_curses";
 export type Arena = "duel_arena" | "wilderness_crater" | "clan_wars" | "fight_caves";
 
+// ── Skills / Progression ──
+export type SkillName =
+  | "attack"
+  | "strength"
+  | "defence"
+  | "hitpoints"
+  | "ranged"
+  | "magic"
+  | "prayer"
+  | "mining"
+  | "fishing"
+  | "woodcutting"
+  | "runecrafting"
+  | "sailing";
+
+export interface SkillState {
+  level: number;
+  xp: number;
+}
+
+export interface AgentProgress {
+  agent_id: string;
+  skills: Record<SkillName, SkillState>;
+  inventory: Record<string, number>;
+  updated_at: number;
+}
+
+export interface InventoryItem {
+  item_id: string;
+  qty: number;
+}
+
 // ── Actions ──
 export type MeleeAction = "slash" | "stab" | "crush" | "whip_flick" | "godsword_smash";
 export type RangedAction = "rapid_shot" | "longrange_shot" | "crossbow_bolt" | "knife_throw" | "dark_bow_spec";
 export type MagicAction = "fire_blast" | "ice_barrage" | "blood_barrage" | "entangle" | "teleblock" | "vengeance";
-export type PrayerAction = "protect_melee" | "protect_ranged" | "protect_magic" | "deflect_melee" | "deflect_ranged" | "deflect_magic" | "smite" | "none";
+export type PrayerAction =
+  | "protect_melee"
+  | "protect_ranged"
+  | "protect_magic"
+  | "smite"
+  | "piety"
+  | "rigour"
+  | "augury"
+  | "none"
+  // Compatibility shim for old clients; normalized server-side.
+  | "deflect_melee"
+  | "deflect_ranged"
+  | "deflect_magic";
 export type FoodAction = "eat_shark" | "brew_sip" | "karambwan" | "combo_eat" | "none";
 export type MovementAction = "step_under" | "run_away" | "teleport_out" | "none";
 export type SpecialAction = "ags_spec" | "dds_spec" | "gmaul_spec" | "vls_spec" | "dbow_spec" | "zcb_spec" | "sgs_spec" | "staff_spec" | "claws_spec" | "none";
@@ -88,6 +132,8 @@ export interface Fight {
   arena: Arena;
   round: number;
   tick: number;
+  tick_window_ms: number;
+  next_tick_at: number;
   status: FightStatus;
   p1: PlayerState;
   p2: PlayerState;
@@ -122,6 +168,8 @@ export interface WorldAgent {
   x: number;
   y: number;
   zone: string;
+  area_id?: string;
+  instance_id?: string | null;
   updated_at: number;
 }
 
@@ -132,13 +180,123 @@ export interface Challenge {
   target_id: string;
   wager_amount: number;
   arena: Arena;
-  rules: {
-    no_prayer: boolean;
-    no_food: boolean;
-    no_special_attack: boolean;
-  };
+  rules: DuelRules;
   status: "pending" | "accepted" | "declined" | "expired";
   created_at: number;
+}
+
+export interface DuelRules {
+  no_prayer: boolean;
+  no_food: boolean;
+  no_special_attack: boolean;
+}
+
+export interface DuelQueueEntry {
+  agent_id: string;
+  arena: Arena;
+  combat_class: CombatClass;
+  joined_at: number;
+  fallback_bot_after_ms: number;
+}
+
+export type GatheringSkill = "mining" | "fishing" | "woodcutting" | "runecrafting";
+
+export type ResourceNodeType =
+  | "copper_rock"
+  | "tin_rock"
+  | "iron_rock"
+  | "coal_rock"
+  | "mithril_rock"
+  | "adamantite_rock"
+  | "runite_rock"
+  | "normal_tree"
+  | "oak_tree"
+  | "willow_tree"
+  | "yew_tree"
+  | "magic_tree"
+  | "shrimp_spot"
+  | "anchovy_spot"
+  | "trout_spot"
+  | "salmon_spot"
+  | "lobster_spot"
+  | "swordfish_spot"
+  | "shark_spot"
+  | "air_altar"
+  | "mind_altar"
+  | "law_altar"
+  | "nature_altar";
+
+export interface ResourceNode {
+  node_id: string;
+  type: ResourceNodeType;
+  skill: GatheringSkill;
+  item_id: string;
+  x: number;
+  y: number;
+  zone: string;
+  area_id: string;
+  instance_id?: string | null;
+  level_required: number;
+  xp: number;
+  success_chance: number;
+  depleted_until: number | null;
+  respawn_ms: number;
+}
+
+export type WorldInteractAction = "start" | "stop";
+
+export interface WorldInteractRequest {
+  agent_id: string;
+  node_id: string;
+  action: WorldInteractAction;
+}
+
+export type PortalScope = "shared" | "personal";
+
+export interface PortalTravelRequest {
+  agent_id: string;
+  portal_id: string;
+  scope?: PortalScope;
+}
+
+export type SpellName =
+  | "wind_strike"
+  | "teleport_lumbridge"
+  | "teleport_varrock"
+  | "teleport_al_kharid"
+  | "teleport_wilderness"
+  | "teleport_runecraft_nexus"
+  | "teleport_shadow_dungeon";
+
+export interface CastSpellRequest {
+  agent_id: string;
+  spell: SpellName;
+}
+
+export interface WorldArea {
+  area_id: string;
+  name: string;
+  description: string;
+  environment: "mainline" | "desert" | "wilderness" | "dungeon" | "minigame" | "arcane" | "quest";
+  shared: boolean;
+  world_width: number;
+  spawn_x: number;
+  spawn_y: number;
+  spawn_zone: string;
+}
+
+export interface WorldPortal {
+  portal_id: string;
+  name: string;
+  from_area_id: string;
+  from_x: number;
+  from_y: number;
+  to_area_id: string;
+  to_x: number;
+  to_y: number;
+  to_zone: string;
+  kind: "travel" | "duel_queue";
+  default_scope: PortalScope;
 }
 
 // ── Stat Profiles ──

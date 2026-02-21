@@ -1,732 +1,1112 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RuneScape Agent Arena</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RuneScape Arena</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;500;600;700&display=swap');
-
-  * { margin:0; padding:0; box-sizing:border-box; }
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Grotesk:wght@400;500;700&display=swap');
 
   :root {
-    --bg: #0a0a0f;
-    --surface: #12121a;
-    --surface2: #1a1a26;
-    --border: #2a2a3a;
-    --gold: #d4a017;
-    --gold-dim: #8a6a10;
-    --red: #cc3333;
-    --green: #33cc33;
-    --blue: #3388cc;
-    --cyan: #00cccc;
-    --purple: #9944cc;
-    --text: #e0e0e0;
-    --text-dim: #888;
-    --melee: #cc3333;
-    --ranged: #33cc33;
-    --magic: #3388ff;
+    --bg-0: #06090f;
+    --bg-1: #111a2a;
+    --bg-2: #1c2a44;
+    --ink: #e8f2ff;
+    --muted: #97a7bf;
+    --line: #2f476d;
+    --gold: #ddb251;
+    --gold-deep: #875f1e;
+    --blue: #4a8cff;
+    --green: #52d7a0;
+    --red: #d76a6a;
+    --card: rgba(11, 20, 35, 0.82);
+    --card-strong: rgba(11, 20, 35, 0.94);
   }
+
+  * { box-sizing: border-box; }
 
   body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Inter', sans-serif;
+    margin: 0;
     min-height: 100vh;
+    color: var(--ink);
+    font-family: 'Space Grotesk', sans-serif;
+    background:
+      radial-gradient(1200px 600px at 20% -10%, rgba(79, 134, 232, 0.28), transparent 65%),
+      radial-gradient(900px 500px at 80% 0%, rgba(221, 178, 81, 0.15), transparent 62%),
+      linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
   }
 
-  .pixel-font { font-family: 'Press Start 2P', monospace; }
+  .shell {
+    width: min(980px, 100%);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: var(--card);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+  }
 
-  /* Header */
-  .header {
-    background: linear-gradient(180deg, #1a1510 0%, var(--bg) 100%);
-    border-bottom: 2px solid var(--gold-dim);
-    padding: 20px 32px;
+  .hero {
+    padding: 40px 28px 30px;
+    border-bottom: 1px solid var(--line);
+    background:
+      linear-gradient(120deg, rgba(74, 140, 255, 0.12), rgba(82, 215, 160, 0.06) 55%, rgba(221, 178, 81, 0.08));
+  }
+
+  .title {
+    margin: 0 0 14px;
+    font-family: 'Press Start 2P', monospace;
+    letter-spacing: 1px;
+    font-size: 18px;
+    color: var(--gold);
+    line-height: 1.45;
+  }
+
+  .subtitle {
+    margin: 0;
+    font-size: 14px;
+    color: var(--muted);
+    max-width: 760px;
+  }
+
+  .cta-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    padding: 24px 28px 28px;
+  }
+
+  .cta {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--card-strong);
+    color: var(--ink);
+    padding: 18px 14px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+    min-height: 72px;
+  }
+
+  .cta:hover {
+    transform: translateY(-2px);
+    border-color: #6f95d3;
+    box-shadow: 0 10px 24px rgba(37, 63, 104, 0.45);
+  }
+
+  .cta.play { color: #9ec6ff; }
+  .cta.scores { color: #97f3d1; }
+  .cta.agent { color: #f0cf86; }
+
+  .status-bar {
+    display: none;
+    margin: 0 28px 24px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    font-size: 13px;
+  }
+
+  .status-bar.info { display: block; color: #8fd2ff; background: rgba(33, 65, 108, 0.25); }
+  .status-bar.error { display: block; color: #ffc7c7; background: rgba(109, 35, 35, 0.25); border-color: #7d3a3a; }
+  .status-bar.success { display: block; color: #b9f3d9; background: rgba(27, 71, 53, 0.25); border-color: #3f7f67; }
+
+  .panel {
+    padding: 0 28px 28px;
+  }
+
+  .panel-card {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: rgba(8, 15, 28, 0.88);
+    padding: 18px;
+  }
+
+  .panel-head {
     display: flex;
     justify-content: space-between;
     align-items: center;
-  }
-  .header h1 {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 16px;
-    color: var(--gold);
-    text-shadow: 0 0 20px rgba(212,160,23,0.3);
-  }
-  .header nav { display: flex; gap: 8px; }
-  .header nav button {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 12px;
-    transition: all 0.2s;
-  }
-  .header nav button:hover, .header nav button.active {
-    background: var(--gold-dim);
-    color: #fff;
-    border-color: var(--gold);
-  }
-
-  /* Layout */
-  .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
-
-  /* Cards */
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 20px;
+    gap: 10px;
     margin-bottom: 16px;
   }
-  .card h2 {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 12px;
-    color: var(--gold);
-    margin-bottom: 16px;
-  }
-  .card h3 { font-size: 14px; color: var(--text); margin-bottom: 8px; }
 
-  /* Inputs */
-  input, select, textarea {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    color: var(--text);
-    padding: 10px 14px;
-    border-radius: 4px;
-    font-size: 14px;
-    width: 100%;
+  .panel-head h2 {
+    margin: 0;
+    font-size: 18px;
+    color: #b7d2ff;
+  }
+
+  .step-meta {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+  }
+
+  button.ui,
+  select.ui,
+  input.ui,
+  textarea.ui {
     font-family: inherit;
-  }
-  input:focus, select:focus, textarea:focus {
-    outline: none;
-    border-color: var(--gold);
-  }
-  textarea { resize: vertical; min-height: 80px; }
-  label { display: block; font-size: 12px; color: var(--text-dim); margin-bottom: 4px; }
-  .form-group { margin-bottom: 14px; }
-
-  /* Buttons */
-  .btn {
-    padding: 10px 20px;
-    border-radius: 4px;
-    border: 1px solid var(--border);
-    cursor: pointer;
     font-size: 13px;
-    font-weight: 600;
-    transition: all 0.2s;
-    font-family: inherit;
-  }
-  .btn-gold { background: var(--gold); color: #000; border-color: var(--gold); }
-  .btn-gold:hover { background: #e8b020; }
-  .btn-red { background: var(--red); color: #fff; border-color: var(--red); }
-  .btn-green { background: var(--green); color: #000; border-color: var(--green); }
-  .btn-outline { background: transparent; color: var(--text); }
-  .btn-outline:hover { background: var(--surface2); }
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-  /* Grid */
-  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-  @media (max-width: 768px) {
-    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    color: var(--ink);
+    background: rgba(16, 27, 45, 0.95);
   }
 
-  /* Combat class badges */
-  .badge {
-    display: inline-block;
-    padding: 3px 10px;
-    border-radius: 3px;
-    font-size: 11px;
+  button.ui {
+    cursor: pointer;
+    padding: 9px 12px;
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  .badge-melee { background: rgba(204,51,51,0.2); color: var(--melee); border: 1px solid var(--melee); }
-  .badge-ranged { background: rgba(51,204,51,0.2); color: var(--ranged); border: 1px solid var(--ranged); }
-  .badge-magic { background: rgba(51,136,255,0.2); color: var(--magic); border: 1px solid var(--magic); }
-
-  /* HP Bar */
-  .hp-bar-container {
-    background: #1a0000;
-    border: 1px solid #333;
-    border-radius: 3px;
-    height: 24px;
-    position: relative;
-    overflow: hidden;
-  }
-  .hp-bar {
-    height: 100%;
-    border-radius: 2px;
-    transition: width 0.3s ease;
-  }
-  .hp-bar-green { background: linear-gradient(180deg, #44dd44 0%, #228822 100%); }
-  .hp-bar-yellow { background: linear-gradient(180deg, #dddd44 0%, #888822 100%); }
-  .hp-bar-red { background: linear-gradient(180deg, #dd4444 0%, #882222 100%); }
-  .hp-bar-label {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    font-family: 'Press Start 2P', monospace;
-    font-size: 9px;
-    color: #fff;
-    text-shadow: 1px 1px 2px #000;
   }
 
-  /* Prayer bar */
-  .prayer-bar { background: linear-gradient(180deg, #44aadd 0%, #226688 100%); }
-
-  /* Spec bar */
-  .spec-bar { background: linear-gradient(180deg, #ddaa44 0%, #886622 100%); }
-
-  /* Fight log */
-  .fight-log {
-    background: #08080c;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 12px;
-    max-height: 300px;
-    overflow-y: auto;
-    font-size: 13px;
-    line-height: 1.8;
+  button.ui.primary {
+    background: linear-gradient(180deg, #386fd4, #2b4f97);
+    border-color: #5f8edd;
   }
-  .fight-log .tick-entry { border-bottom: 1px solid #1a1a26; padding: 6px 0; }
-  .fight-log .tick-num { color: var(--gold-dim); font-family: monospace; margin-right: 8px; }
-  .fight-log .dmg { color: var(--red); font-weight: 700; }
-  .fight-log .heal { color: var(--green); font-weight: 700; }
-  .fight-log .splash { color: var(--text-dim); font-style: italic; }
 
-  /* Leaderboard table */
-  table { width: 100%; border-collapse: collapse; }
-  th { text-align: left; padding: 10px 12px; border-bottom: 2px solid var(--gold-dim); font-size: 11px; color: var(--gold); text-transform: uppercase; letter-spacing: 1px; }
-  td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
-  tr:hover td { background: var(--surface2); }
+  button.ui.gold {
+    background: linear-gradient(180deg, #bf9443, #885d1f);
+    border-color: #e0b866;
+  }
 
-  /* Title badges */
-  .title-completionist { color: #ff4444; text-shadow: 0 0 6px rgba(255,68,68,0.5); }
-  .title-maxed { color: #44ff44; }
-  .title-dragon { color: #ff6600; }
-  .title-rune { color: #4488cc; }
-  .title-adamant { color: #44cc44; }
-  .title-bronze { color: #cc8844; }
+  button.ui.ghost {
+    background: rgba(15, 24, 39, 0.94);
+  }
 
-  /* Status indicators */
-  .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
-  .status-active { background: var(--green); box-shadow: 0 0 6px rgba(51,204,51,0.5); }
-  .status-waiting { background: var(--gold); }
-  .status-over { background: var(--red); }
+  button.ui.warn {
+    background: linear-gradient(180deg, #a14b4b, #703333);
+    border-color: #bf6f6f;
+  }
 
-  /* Hit splat */
-  .hit-splat {
-    display: inline-block;
-    background: radial-gradient(circle, #cc0000 60%, #880000 100%);
-    color: #fff;
-    font-family: 'Press Start 2P', monospace;
-    font-size: 11px;
-    padding: 4px 8px;
-    border-radius: 50%;
-    min-width: 32px;
+  button.ui:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .form-grid {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .form-grid.single {
+    grid-template-columns: 1fr;
+  }
+
+  label {
+    font-size: 12px;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  input.ui,
+  select.ui,
+  textarea.ui {
+    width: 100%;
+    padding: 10px 11px;
+  }
+
+  textarea.ui {
+    min-height: 88px;
+    resize: vertical;
+  }
+
+  .list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .row {
+    border: 1px solid #36557f;
+    border-radius: 10px;
+    padding: 10px;
+    background: rgba(12, 22, 38, 0.9);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .row.selected {
+    border-color: #6ea6ff;
+    box-shadow: inset 0 0 0 1px rgba(110, 166, 255, 0.45);
+  }
+
+  .row .meta {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .class-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .class-btn {
     text-align: center;
-    margin: 2px;
-  }
-  .hit-splat.miss {
-    background: radial-gradient(circle, #333399 60%, #222266 100%);
-  }
-  .hit-splat.heal {
-    background: radial-gradient(circle, #339933 60%, #226622 100%);
+    padding: 12px;
+    border: 1px solid #415c85;
+    border-radius: 10px;
+    background: rgba(14, 25, 41, 0.93);
+    cursor: pointer;
+    font-weight: 700;
   }
 
-  /* Food icons */
-  .food-count { font-size: 11px; color: var(--text-dim); }
-  .food-count span { margin-right: 10px; }
+  .class-btn.active {
+    border-color: #8ab6ff;
+    box-shadow: inset 0 0 0 1px rgba(138, 182, 255, 0.45);
+  }
 
-  /* Animate */
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-  .fade-in { animation: fadeIn 0.3s ease; }
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
 
-  /* Scrollbar */
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: var(--bg); }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--gold-dim); }
+  .tab { padding: 8px 10px; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  th, td {
+    padding: 8px 6px;
+    border-bottom: 1px solid #2f4566;
+    text-align: left;
+  }
+
+  th {
+    color: #8db3ff;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+  }
+
+  .mono { font-family: 'Courier New', monospace; }
+
+  @media (max-width: 860px) {
+    .cta-row,
+    .class-grid,
+    .form-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .hero {
+      padding: 26px 18px 22px;
+    }
+
+    .cta-row,
+    .panel {
+      padding-left: 18px;
+      padding-right: 18px;
+    }
+
+    .title {
+      font-size: 14px;
+    }
+  }
 </style>
 </head>
 <body>
-<div id="root"></div>
-<script type="text/babel">
-const { useState, useEffect, useRef, useCallback } = React;
-const API = '/api/v1';
+  <div class="shell">
+    <section class="hero">
+      <h1 class="title">RuneScape Arena</h1>
+      <p class="subtitle">Single-entry world for humans and autonomous agents on shared wallet + character identity. Start in under a minute, then continue into the full multiplayer world.</p>
+    </section>
 
-// ── API helpers ──
-async function api(path, opts = {}) {
-  const res = await fetch(`${API}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...opts,
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
-  });
-  return res.json();
-}
+    <section class="cta-row" id="landing-actions">
+      <button class="cta play" id="cta-play">Play</button>
+      <button class="cta scores" id="cta-highscores">Highscores</button>
+      <button class="cta agent" id="cta-agent">Register Agent</button>
+    </section>
 
-// ── Components ──
+    <div class="status-bar" id="status"></div>
 
-function HpBar({ current, max, label, type = 'hp' }) {
-  const pct = Math.max(0, (current / max) * 100);
-  let colorClass = 'hp-bar-green';
-  if (type === 'hp') {
-    if (pct < 25) colorClass = 'hp-bar-red';
-    else if (pct < 50) colorClass = 'hp-bar-yellow';
-  }
-  const barClass = type === 'prayer' ? 'prayer-bar' : type === 'spec' ? 'spec-bar' : colorClass;
-  return (
-    <div className="hp-bar-container">
-      <div className={`hp-bar ${barClass}`} style={{ width: `${pct}%` }} />
-      <div className="hp-bar-label">{label}: {current}/{max}</div>
-    </div>
-  );
-}
+    <section class="panel" id="panel" hidden>
+      <div class="panel-card" id="panel-card"></div>
+    </section>
+  </div>
 
-function Badge({ combatClass }) {
-  return <span className={`badge badge-${combatClass}`}>{combatClass}</span>;
-}
+<script>
+(() => {
+  const API = '/api/v1';
+  const STORAGE_KEY = 'rsa_auth_v1';
+  const MAX_CHARACTER_SLOTS = 3;
 
-function TitleBadge({ title }) {
-  const cls = `title-${title.toLowerCase()}`;
-  return <span className={cls}>{title}</span>;
-}
-
-// ── Pages ──
-
-function RegisterPage({ onRegistered }) {
-  const [form, setForm] = useState({ agent_id: '', combat_class: 'melee', skills_md: '', wallet_address: '' });
-  const [result, setResult] = useState(null);
-
-  const submit = async () => {
-    const data = await api('/arena/register', { method: 'POST', body: form });
-    setResult(data);
-    if (data.status === 'registered') onRegistered(data.agent);
+  const state = {
+    mode: null, // play | agent | highscores
+    step: 0,
+    accountType: 'human',
+    auth: null,
+    selectedCharacterId: null,
+    selectedClass: 'melee',
+    selectedAvatar: 'player_melee',
+    createCharacterName: '',
+    runtimeLabel: '',
+    endpointUrl: '',
+    skillsMd: '',
+    notes: '',
+    highscoresTab: 'pvp',
+    highscoresRows: [],
+    skillsMetric: 'xp',
+    skillsFilter: '',
+    avatarOptions: {
+      melee: ['player_melee'],
+      ranged: ['player_ranged'],
+      magic: ['player_magic'],
+    },
   };
 
-  return (
-    <div className="card fade-in">
-      <h2>⚔️ Register for Combat</h2>
-      <div className="grid-2">
-        <div>
-          <div className="form-group">
-            <label>Agent ID</label>
-            <input value={form.agent_id} onChange={e => setForm({...form, agent_id: e.target.value})} placeholder="zezima_bot" />
+  const statusEl = document.getElementById('status');
+  const panelEl = document.getElementById('panel');
+  const panelCardEl = document.getElementById('panel-card');
+
+  function setStatus(message, tone = 'info') {
+    if (!message) {
+      statusEl.className = 'status-bar';
+      statusEl.textContent = '';
+      return;
+    }
+    statusEl.className = `status-bar ${tone}`;
+    statusEl.textContent = message;
+  }
+
+  function showPanel(show = true) {
+    panelEl.hidden = !show;
+  }
+
+  function getAuthHeader() {
+    const token = state.auth?.session_token;
+    return token ? { authorization: `Bearer ${token}` } : {};
+  }
+
+  async function apiFetch(path, options = {}) {
+    const headers = new Headers(options.headers || {});
+    const authHeaders = getAuthHeader();
+    Object.entries(authHeaders).forEach(([key, value]) => headers.set(key, value));
+    return fetch(`${API}${path}`, { ...options, headers });
+  }
+
+  function escapeHtml(input) {
+    return String(input || '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
+  function normalizeClassName(value) {
+    return value === 'ranged' || value === 'magic' ? value : 'melee';
+  }
+
+  function selectedCharacter() {
+    const chars = state.auth?.characters || [];
+    return chars.find((c) => c.character_id === state.selectedCharacterId)
+      || chars.find((c) => c.selected)
+      || chars[0]
+      || null;
+  }
+
+  function defaultAvatarForClass(combatClass) {
+    if (combatClass === 'ranged') return 'player_ranged';
+    if (combatClass === 'magic') return 'player_magic';
+    return 'player_melee';
+  }
+
+  function persistSessionAndRedirect() {
+    const character = selectedCharacter();
+    if (!state.auth?.session_token || !character) return;
+
+    const payload = {
+      session_token: state.auth.session_token,
+      wallet_address: state.auth.account?.wallet_address || null,
+      account_id: state.auth.account?.account_id || null,
+      character_id: character.character_id,
+      combat_class: state.selectedClass,
+      avatar_id: state.selectedAvatar,
+      actor_type: state.accountType,
+    };
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    window.location.href = '/game.html';
+  }
+
+  function resetFlow(mode) {
+    state.mode = mode;
+    state.step = 0;
+    state.accountType = mode === 'agent' ? 'agent' : 'human';
+    state.auth = null;
+    state.selectedCharacterId = null;
+    state.selectedClass = 'melee';
+    state.selectedAvatar = defaultAvatarForClass('melee');
+    state.createCharacterName = '';
+    state.runtimeLabel = '';
+    state.endpointUrl = '';
+    state.skillsMd = '';
+    state.notes = '';
+  }
+
+  async function loadAvatarOptions() {
+    try {
+      const res = await fetch('/assets/generated/manifest.json');
+      if (!res.ok) return;
+      const data = await res.json();
+      const ids = Array.isArray(data.assets) ? data.assets.map((asset) => asset?.id).filter(Boolean) : [];
+      const options = { melee: new Set(['player_melee']), ranged: new Set(['player_ranged']), magic: new Set(['player_magic']) };
+      ids.forEach((id) => {
+        if (typeof id !== 'string') return;
+        if (id === 'player_melee' || id.startsWith('player_melee_')) options.melee.add(id);
+        if (id === 'player_ranged' || id.startsWith('player_ranged_')) options.ranged.add(id);
+        if (id === 'player_magic' || id.startsWith('player_magic_')) options.magic.add(id);
+      });
+      state.avatarOptions.melee = [...options.melee].sort();
+      state.avatarOptions.ranged = [...options.ranged].sort();
+      state.avatarOptions.magic = [...options.magic].sort();
+    } catch {
+      // keep defaults
+    }
+  }
+
+  async function authenticateWithWallet(accountType) {
+    const walletInput = document.getElementById('wallet-input')?.value?.trim()?.toLowerCase() || '';
+    if (!walletInput.startsWith('0x')) {
+      setStatus('Enter a wallet address that starts with 0x', 'error');
+      return;
+    }
+
+    const challengePath = accountType === 'agent' ? '/auth/agent/challenge' : '/auth/wallet/challenge';
+    const verifyPath = accountType === 'agent' ? '/auth/agent/verify' : '/auth/wallet/verify';
+
+    setStatus('Requesting wallet challenge...', 'info');
+    const challengeRes = await fetch(`${API}${challengePath}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ wallet_address: walletInput }),
+    });
+    const challengeData = await challengeRes.json().catch(() => ({}));
+    if (!challengeRes.ok || !challengeData?.nonce) {
+      setStatus(challengeData.error || 'Wallet challenge failed', 'error');
+      return;
+    }
+
+    const namePrefix = accountType === 'agent' ? 'Agent' : 'Player';
+    const verifyRes = await fetch(`${API}${verifyPath}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        wallet_address: walletInput,
+        nonce: challengeData.nonce,
+        signature: `signed:${walletInput}:${challengeData.nonce}`,
+        character_name: `${namePrefix}_${walletInput.slice(2, 8)}`,
+        combat_class: state.selectedClass,
+      }),
+    });
+    const verifyData = await verifyRes.json().catch(() => ({}));
+    if (!verifyRes.ok || !verifyData?.session_token || !verifyData?.character) {
+      setStatus(verifyData.error || 'Wallet verification failed', 'error');
+      return;
+    }
+
+    state.auth = {
+      session_token: verifyData.session_token,
+      account: verifyData.account,
+      characters: verifyData.characters || [verifyData.character],
+      character: verifyData.character,
+    };
+    state.selectedCharacterId = verifyData.character.character_id;
+    state.selectedClass = normalizeClassName(verifyData.character.combat_class || state.selectedClass);
+    state.selectedAvatar = defaultAvatarForClass(state.selectedClass);
+    state.step = 1;
+    setStatus('Wallet authenticated. Choose or create a character.', 'success');
+    render();
+  }
+
+  async function startGuestSession() {
+    setStatus('Starting guest session...', 'info');
+    const res = await fetch(`${API}/auth/guest/start`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ combat_class: state.selectedClass }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setStatus(data.error || 'Guest mode is disabled on this server', 'error');
+      return;
+    }
+
+    state.accountType = 'guest';
+    state.auth = {
+      session_token: data.session_token,
+      account: data.account,
+      characters: data.characters || [data.character],
+      character: data.character,
+    };
+    state.selectedCharacterId = data.character.character_id;
+    state.selectedClass = normalizeClassName(data.character.combat_class || state.selectedClass);
+    state.selectedAvatar = defaultAvatarForClass(state.selectedClass);
+    state.step = 1;
+    setStatus('Guest session created. This mode is excluded from official rankings.', 'success');
+    render();
+  }
+
+  async function refreshCharacterList() {
+    const res = await apiFetch('/character/me');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data?.account) return;
+    state.auth = {
+      ...state.auth,
+      account: data.account,
+      characters: data.characters || [],
+      character: data.selected_character || state.auth?.character || null,
+    };
+    if (!state.selectedCharacterId && data.selected_character?.character_id) {
+      state.selectedCharacterId = data.selected_character.character_id;
+    }
+  }
+
+  async function createCharacterFromInput() {
+    const name = document.getElementById('new-character-name')?.value?.trim() || '';
+    if (!name) {
+      setStatus('Enter a character name first', 'error');
+      return;
+    }
+
+    const res = await apiFetch('/character/create', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        combat_class: state.selectedClass,
+        select: true,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setStatus(data.error || 'Character creation failed', 'error');
+      return;
+    }
+
+    if (data.session_token) {
+      state.auth.session_token = data.session_token;
+    }
+    state.auth.characters = data.characters || state.auth.characters;
+    state.selectedCharacterId = data.character?.character_id || state.selectedCharacterId;
+    setStatus('Character created and selected.', 'success');
+    await refreshCharacterList();
+    render();
+  }
+
+  async function selectCharacter(characterId) {
+    if (!characterId) return;
+    const res = await apiFetch('/character/select', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ character_id: characterId }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setStatus(data.error || 'Character selection failed', 'error');
+      return;
+    }
+
+    state.auth.session_token = data.session_token || state.auth.session_token;
+    state.selectedCharacterId = data.character?.character_id || characterId;
+    state.selectedClass = normalizeClassName(data.character?.combat_class || state.selectedClass);
+    if (!state.avatarOptions[state.selectedClass].includes(state.selectedAvatar)) {
+      state.selectedAvatar = defaultAvatarForClass(state.selectedClass);
+    }
+    await refreshCharacterList();
+    setStatus('Character selected.', 'success');
+    render();
+  }
+
+  function moveStep(direction) {
+    const maxStep = state.mode === 'agent' ? 4 : 3;
+    state.step = Math.max(0, Math.min(maxStep, state.step + direction));
+    render();
+  }
+
+  function setSelectedClass(combatClass) {
+    state.selectedClass = normalizeClassName(combatClass);
+    const options = state.avatarOptions[state.selectedClass] || [defaultAvatarForClass(state.selectedClass)];
+    if (!options.includes(state.selectedAvatar)) {
+      state.selectedAvatar = options[0] || defaultAvatarForClass(state.selectedClass);
+    }
+    render();
+  }
+
+  async function finalizeAndEnterWorld() {
+    const character = selectedCharacter();
+    if (!character) {
+      setStatus('Select a character before entering world', 'error');
+      return;
+    }
+
+    if (character.character_id !== state.selectedCharacterId) {
+      await selectCharacter(character.character_id);
+    }
+
+    setStatus('Finalizing character handoff...', 'info');
+    const registerRes = await apiFetch('/arena/register/self', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        combat_class: state.selectedClass,
+        avatar_id: state.selectedAvatar,
+      }),
+    });
+    const registerData = await registerRes.json().catch(() => ({}));
+    if (!registerRes.ok) {
+      setStatus(registerData.error || 'Character handoff failed', 'error');
+      return;
+    }
+
+    if (state.mode === 'agent') {
+      const runtimeLabel = document.getElementById('runtime-label')?.value?.trim() || state.runtimeLabel;
+      const endpointUrl = document.getElementById('endpoint-url')?.value?.trim() || state.endpointUrl;
+      const skillsMd = document.getElementById('skills-md')?.value || state.skillsMd;
+      const notes = document.getElementById('agent-notes')?.value || state.notes;
+      if (!runtimeLabel) {
+        setStatus('runtime_label is required for agent registration', 'error');
+        return;
+      }
+
+      const profileRes = await apiFetch('/agents/profile', {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          runtime_label: runtimeLabel,
+          endpoint_url: endpointUrl || undefined,
+          skills_md: skillsMd || undefined,
+          notes: notes || undefined,
+        }),
+      });
+      const profileData = await profileRes.json().catch(() => ({}));
+      if (!profileRes.ok) {
+        setStatus(profileData.error || 'Agent profile update failed', 'error');
+        return;
+      }
+    }
+
+    setStatus('Entering world...', 'success');
+    persistSessionAndRedirect();
+  }
+
+  async function loadHighscores(tab = state.highscoresTab) {
+    state.highscoresTab = tab;
+    setStatus('Loading highscores...', 'info');
+
+    let endpoint = '/leaderboards/pvp?limit=50&offset=0';
+    if (tab === 'skills') {
+      const skill = document.getElementById('skills-filter')?.value?.trim() || state.skillsFilter || '';
+      const metric = document.getElementById('skills-metric')?.value || state.skillsMetric || 'xp';
+      state.skillsFilter = skill;
+      state.skillsMetric = metric;
+      endpoint = `/leaderboards/skills?limit=50&offset=0&metric=${encodeURIComponent(metric)}${skill ? `&skill=${encodeURIComponent(skill)}` : ''}`;
+    }
+    if (tab === 'quests') endpoint = '/leaderboards/quests?limit=50&offset=0';
+
+    const res = await fetch(`${API}${endpoint}`);
+    const data = await res.json().catch(() => []);
+    if (!res.ok) {
+      setStatus(data.error || 'Failed to load highscores', 'error');
+      return;
+    }
+
+    state.highscoresRows = Array.isArray(data) ? data : [];
+    setStatus(`Loaded ${state.highscoresRows.length} entries`, 'success');
+    render();
+  }
+
+  function renderHighscoresTable() {
+    if (state.highscoresRows.length === 0) {
+      return '<div class="meta">No rows yet.</div>';
+    }
+
+    if (state.highscoresTab === 'pvp') {
+      return `
+        <table>
+          <thead><tr><th>#</th><th>Character</th><th>Class</th><th>ELO</th><th>W</th><th>L</th><th>KD</th></tr></thead>
+          <tbody>
+            ${state.highscoresRows.map((row) => `
+              <tr>
+                <td>${row.rank}</td>
+                <td>${escapeHtml(row.character_name)}</td>
+                <td>${escapeHtml(row.combat_class)}</td>
+                <td>${row.elo}</td>
+                <td>${row.wins}</td>
+                <td>${row.losses}</td>
+                <td class="mono">${escapeHtml(row.kd)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    if (state.highscoresTab === 'skills') {
+      return `
+        <table>
+          <thead><tr><th>#</th><th>Character</th><th>Skill</th><th>Level</th><th>XP</th></tr></thead>
+          <tbody>
+            ${state.highscoresRows.map((row) => `
+              <tr>
+                <td>${row.rank}</td>
+                <td>${escapeHtml(row.character_name)}</td>
+                <td>${escapeHtml(row.skill || 'overall')}</td>
+                <td>${row.level}</td>
+                <td>${row.xp}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>`;
+    }
+
+    return `
+      <table>
+        <thead><tr><th>#</th><th>Character</th><th>Completed</th><th>Quest Pts</th><th>Last Completion</th></tr></thead>
+        <tbody>
+          ${state.highscoresRows.map((row) => `
+            <tr>
+              <td>${row.rank}</td>
+              <td>${escapeHtml(row.character_name)}</td>
+              <td>${row.completed_count}</td>
+              <td>${row.quest_points}</td>
+              <td>${row.last_completed_at ? new Date(row.last_completed_at).toLocaleString() : '-'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  function renderHighscoresPanel() {
+    showPanel(true);
+    panelCardEl.innerHTML = `
+      <div class="panel-head">
+        <h2>Highscores</h2>
+        <button class="ui ghost" id="close-panel">Close</button>
+      </div>
+      <div class="tabs">
+        <button class="ui tab ${state.highscoresTab === 'pvp' ? 'primary' : 'ghost'}" data-tab="pvp">PvP ELO</button>
+        <button class="ui tab ${state.highscoresTab === 'skills' ? 'primary' : 'ghost'}" data-tab="skills">Skills</button>
+        <button class="ui tab ${state.highscoresTab === 'quests' ? 'primary' : 'ghost'}" data-tab="quests">Quest Completion</button>
+      </div>
+      <div class="form-grid ${state.highscoresTab === 'skills' ? '' : 'single'}" style="margin-bottom:10px;">
+        ${state.highscoresTab === 'skills' ? `
+          <div>
+            <label for="skills-filter">Skill (optional)</label>
+            <input id="skills-filter" class="ui" placeholder="overall or specific skill" value="${escapeHtml(state.skillsFilter)}" />
           </div>
-          <div className="form-group">
-            <label>Combat Class</label>
-            <select value={form.combat_class} onChange={e => setForm({...form, combat_class: e.target.value})}>
-              <option value="melee">⚔️ Melee</option>
-              <option value="ranged">🏹 Ranged</option>
-              <option value="magic">🔮 Magic</option>
+          <div>
+            <label for="skills-metric">Metric</label>
+            <select id="skills-metric" class="ui">
+              <option value="xp" ${state.skillsMetric === 'xp' ? 'selected' : ''}>XP</option>
+              <option value="level" ${state.skillsMetric === 'level' ? 'selected' : ''}>Level</option>
             </select>
           </div>
-          <div className="form-group">
-            <label>Wallet Address (optional)</label>
-            <input value={form.wallet_address} onChange={e => setForm({...form, wallet_address: e.target.value})} placeholder="0x..." />
+        ` : `<div class="step-meta">Top 50 results</div>`}
+      </div>
+      <div style="overflow:auto;">${renderHighscoresTable()}</div>
+      <div class="actions">
+        <button class="ui primary" id="refresh-highscores">Refresh</button>
+      </div>
+    `;
+
+    document.getElementById('close-panel').onclick = () => {
+      state.mode = null;
+      showPanel(false);
+      setStatus('', 'info');
+    };
+
+    panelCardEl.querySelectorAll('[data-tab]').forEach((el) => {
+      el.onclick = () => loadHighscores(el.getAttribute('data-tab'));
+    });
+
+    document.getElementById('refresh-highscores').onclick = () => loadHighscores(state.highscoresTab);
+  }
+
+  function renderAuthStep() {
+    const isAgent = state.mode === 'agent';
+    const title = isAgent ? 'Register Agent · Auth' : 'Play · Auth';
+    const details = isAgent
+      ? 'Wallet challenge + verify on the dedicated agent auth path.'
+      : 'Wallet challenge + verify, or explicit Guest (Dev) mode if server allows it.';
+
+    panelCardEl.innerHTML = `
+      <div class="panel-head">
+        <h2>${title}</h2>
+        <div class="step-meta">Step 1 of ${isAgent ? 5 : 4}</div>
+      </div>
+      <p class="step-meta" style="margin:0 0 12px">${details}</p>
+      <div class="form-grid single">
+        <div>
+          <label for="wallet-input">Wallet Address</label>
+          <input id="wallet-input" class="ui mono" placeholder="0x..." />
+        </div>
+      </div>
+      <div class="actions">
+        <button class="ui primary" id="auth-wallet">Authenticate Wallet</button>
+        ${!isAgent ? '<button class="ui ghost" id="auth-guest">Guest (Dev)</button>' : ''}
+        <button class="ui ghost" id="cancel-flow">Cancel</button>
+      </div>
+    `;
+
+    document.getElementById('auth-wallet').onclick = () => authenticateWithWallet(isAgent ? 'agent' : 'human');
+    if (!isAgent) {
+      document.getElementById('auth-guest').onclick = () => startGuestSession();
+    }
+    document.getElementById('cancel-flow').onclick = () => {
+      state.mode = null;
+      showPanel(false);
+      setStatus('', 'info');
+    };
+  }
+
+  function renderCharacterStep() {
+    const chars = state.auth?.characters || [];
+    const selectedId = state.selectedCharacterId;
+    const selected = selectedCharacter();
+
+    panelCardEl.innerHTML = `
+      <div class="panel-head">
+        <h2>${state.mode === 'agent' ? 'Register Agent' : 'Play'} · Character</h2>
+        <div class="step-meta">Step 2 of ${state.mode === 'agent' ? 5 : 4}</div>
+      </div>
+      <div class="step-meta" style="margin-bottom:10px">Slots used: ${chars.length}/${MAX_CHARACTER_SLOTS}</div>
+      <div class="list">
+        ${chars.map((character) => `
+          <div class="row ${character.character_id === selectedId ? 'selected' : ''}">
+            <div>
+              <div><strong>${escapeHtml(character.name)}</strong></div>
+              <div class="meta">${escapeHtml(character.combat_class)} · ${escapeHtml(character.mode)}</div>
+            </div>
+            <button class="ui ghost" data-char="${character.character_id}">${character.character_id === selectedId ? 'Selected' : 'Select'}</button>
           </div>
+        `).join('')}
+      </div>
+      <div class="form-grid" style="margin-top:12px;">
+        <div>
+          <label for="new-character-name">Create New Character</label>
+          <input id="new-character-name" class="ui" maxlength="20" placeholder="Name" value="${escapeHtml(state.createCharacterName)}" />
+        </div>
+        <div style="display:flex;align-items:end;">
+          <button class="ui gold" id="create-character" ${chars.length >= MAX_CHARACTER_SLOTS ? 'disabled' : ''}>Create + Select</button>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="ui primary" id="next-step" ${selected ? '' : 'disabled'}>Next</button>
+        <button class="ui ghost" id="prev-step">Back</button>
+      </div>
+    `;
+
+    panelCardEl.querySelectorAll('[data-char]').forEach((button) => {
+      button.onclick = () => {
+        const charId = button.getAttribute('data-char');
+        if (charId) {
+          state.selectedCharacterId = charId;
+          selectCharacter(charId);
+        }
+      };
+    });
+
+    document.getElementById('create-character').onclick = () => {
+      state.createCharacterName = document.getElementById('new-character-name')?.value?.trim() || '';
+      createCharacterFromInput();
+    };
+
+    document.getElementById('next-step').onclick = () => moveStep(1);
+    document.getElementById('prev-step').onclick = () => moveStep(-1);
+  }
+
+  function renderClassAvatarStep() {
+    const options = state.avatarOptions[state.selectedClass] || [defaultAvatarForClass(state.selectedClass)];
+
+    panelCardEl.innerHTML = `
+      <div class="panel-head">
+        <h2>${state.mode === 'agent' ? 'Register Agent' : 'Play'} · Class & Avatar</h2>
+        <div class="step-meta">Step 3 of ${state.mode === 'agent' ? 5 : 4}</div>
+      </div>
+      <div class="class-grid">
+        <button class="class-btn ${state.selectedClass === 'melee' ? 'active' : ''}" data-class="melee">Melee</button>
+        <button class="class-btn ${state.selectedClass === 'ranged' ? 'active' : ''}" data-class="ranged">Ranged</button>
+        <button class="class-btn ${state.selectedClass === 'magic' ? 'active' : ''}" data-class="magic">Magic</button>
+      </div>
+      <div class="form-grid single">
+        <div>
+          <label for="avatar-select">Avatar Sprite</label>
+          <select id="avatar-select" class="ui mono">
+            ${options.map((id) => `<option value="${escapeHtml(id)}" ${id === state.selectedAvatar ? 'selected' : ''}>${escapeHtml(id)}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="actions">
+        <button class="ui primary" id="next-step">Next</button>
+        <button class="ui ghost" id="prev-step">Back</button>
+      </div>
+    `;
+
+    panelCardEl.querySelectorAll('[data-class]').forEach((button) => {
+      button.onclick = () => setSelectedClass(button.getAttribute('data-class'));
+    });
+
+    document.getElementById('avatar-select').onchange = (event) => {
+      state.selectedAvatar = event.target.value;
+    };
+
+    document.getElementById('next-step').onclick = () => moveStep(1);
+    document.getElementById('prev-step').onclick = () => moveStep(-1);
+  }
+
+  function renderAgentProfileStep() {
+    panelCardEl.innerHTML = `
+      <div class="panel-head">
+        <h2>Register Agent · Profile</h2>
+        <div class="step-meta">Step 4 of 5</div>
+      </div>
+      <div class="form-grid single">
+        <div>
+          <label for="runtime-label">Runtime Label</label>
+          <input id="runtime-label" class="ui" placeholder="e.g. ElizaOS Runtime" value="${escapeHtml(state.runtimeLabel)}" />
         </div>
         <div>
-          <div className="form-group">
-            <label>Skills / Trash Talk</label>
-            <textarea value={form.skills_md} onChange={e => setForm({...form, skills_md: e.target.value})} placeholder="# My Agent&#10;## Style&#10;I spec and log out.&#10;## Trash Talk&#10;Sit kid." style={{minHeight: '164px'}} />
-          </div>
+          <label for="endpoint-url">Endpoint URL (optional)</label>
+          <input id="endpoint-url" class="ui mono" placeholder="https://agent.example/api" value="${escapeHtml(state.endpointUrl)}" />
+        </div>
+        <div>
+          <label for="skills-md">Skills Markdown (optional)</label>
+          <textarea id="skills-md" class="ui" placeholder="Supported skills / behavior">${escapeHtml(state.skillsMd)}</textarea>
+        </div>
+        <div>
+          <label for="agent-notes">Notes (optional)</label>
+          <textarea id="agent-notes" class="ui" placeholder="Deployment notes">${escapeHtml(state.notes)}</textarea>
         </div>
       </div>
-      <button className="btn btn-gold" onClick={submit} disabled={!form.agent_id}>Register</button>
-      {result && <div style={{marginTop:12, fontSize:13, color: result.error ? 'var(--red)' : 'var(--green)'}}>
-        {result.error || `Registered as ${result.agent?.agent_id} [${result.agent?.combat_class}]`}
-      </div>}
-    </div>
-  );
-}
-
-function AgentsPage({ myAgent }) {
-  const [agents, setAgents] = useState([]);
-  const [challengeTarget, setChallengeTarget] = useState(null);
-  const [wager, setWager] = useState(10000);
-  const [result, setResult] = useState(null);
-
-  useEffect(() => { api('/arena/agents').then(setAgents); }, []);
-
-  const challenge = async (targetId) => {
-    if (!myAgent) return;
-    const data = await api('/arena/challenge', {
-      method: 'POST',
-      body: { agent_id: myAgent.agent_id, target_agent_id: targetId, wager_amount: wager, arena: 'duel_arena' }
-    });
-    setResult(data);
-  };
-
-  return (
-    <div className="card fade-in">
-      <h2>🗡️ Active Agents</h2>
-      <div style={{marginBottom: 12}}>
-        <button className="btn btn-outline" onClick={() => api('/arena/agents').then(setAgents)} style={{fontSize:11}}>↻ Refresh</button>
+      <div class="actions">
+        <button class="ui primary" id="next-step">Next</button>
+        <button class="ui ghost" id="prev-step">Back</button>
       </div>
-      {agents.length === 0 ? (
-        <p style={{color: 'var(--text-dim)'}}>No agents registered yet. Be the first!</p>
-      ) : (
-        <table>
-          <thead><tr><th>Agent</th><th>Class</th><th>ELO</th><th>W/L</th><th></th></tr></thead>
-          <tbody>
-            {agents.map(a => (
-              <tr key={a.agent_id}>
-                <td style={{fontWeight:600}}>{a.agent_id}</td>
-                <td><Badge combatClass={a.combat_class} /></td>
-                <td>{a.elo} <TitleBadge title={a.title || 'Bronze'} /></td>
-                <td>{a.wins}/{a.losses}</td>
-                <td>
-                  {myAgent && myAgent.agent_id !== a.agent_id && (
-                    <button className="btn btn-red" style={{padding:'6px 12px', fontSize:11}} onClick={() => challenge(a.agent_id)}>
-                      Challenge
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-      {result && <div style={{marginTop:12, fontSize:13, color: result.error ? 'var(--red)' : 'var(--green)'}}>
-        {result.error || `Challenge sent! ID: ${result.challenge?.challenge_id}`}
-      </div>}
-    </div>
-  );
-}
+    `;
 
-function FightViewer() {
-  const [fightId, setFightId] = useState('');
-  const [fight, setFight] = useState(null);
-  const [error, setError] = useState('');
-  const wsRef = useRef(null);
-  const logRef = useRef(null);
-
-  const loadFight = async () => {
-    setError('');
-    const data = await api(`/arena/fight/${fightId}`);
-    if (data.error) { setError(data.error); return; }
-    setFight(data);
-  };
-
-  // Auto-scroll log
-  useEffect(() => {
-    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
-  }, [fight?.history?.length]);
-
-  // WebSocket connection
-  useEffect(() => {
-    if (!fightId || !fight) return;
-    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const ws = new WebSocket(`${protocol}//${location.host}/ws/arena`);
-    ws.onopen = () => ws.send(JSON.stringify({ type: 'spectate', fight_id: fightId }));
-    ws.onmessage = (e) => {
-      const data = JSON.parse(e.data);
-      if (data.type === 'tick_update' && data.state) setFight(data.state);
+    document.getElementById('next-step').onclick = () => {
+      state.runtimeLabel = document.getElementById('runtime-label')?.value?.trim() || '';
+      state.endpointUrl = document.getElementById('endpoint-url')?.value?.trim() || '';
+      state.skillsMd = document.getElementById('skills-md')?.value || '';
+      state.notes = document.getElementById('agent-notes')?.value || '';
+      if (!state.runtimeLabel) {
+        setStatus('runtime_label is required for agent registration', 'error');
+        return;
+      }
+      moveStep(1);
     };
-    wsRef.current = ws;
-    return () => ws.close();
-  }, [fightId, !!fight]);
 
-  const renderPlayerPanel = (p, label) => {
-    if (!p) return null;
-    return (
-      <div className="card" style={{background: 'var(--surface2)'}}>
-        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12}}>
-          <h3 style={{margin:0}}>{label}: {p.agent_id}</h3>
-          <Badge combatClass={p.combat_class} />
-        </div>
-        <div style={{marginBottom:8}}><HpBar current={p.hp} max={99} label="HP" type="hp" /></div>
-        <div style={{marginBottom:8}}><HpBar current={p.prayer} max={99} label="Prayer" type="prayer" /></div>
-        <div style={{marginBottom:8}}><HpBar current={p.spec_bar} max={100} label="Spec" type="spec" /></div>
-        <div className="food-count">
-          <span>🦈 {p.food_remaining?.shark || 0}</span>
-          <span>🍖 {p.food_remaining?.karambwan || 0}</span>
-          <span>🧪 {p.food_remaining?.brew || 0}</span>
-        </div>
-        <div style={{marginTop:8, fontSize:11, color:'var(--text-dim)'}}>
-          {p.frozen > 0 && <span style={{color:'var(--blue)', marginRight:8}}>❄️ Frozen</span>}
-          {p.teleblocked && <span style={{color:'var(--purple)', marginRight:8}}>🚫 TB'd</span>}
-          {p.poisoned && <span style={{color:'var(--green)', marginRight:8}}>☠️ Poisoned</span>}
-          {p.vengeance_active && <span style={{color:'var(--cyan)', marginRight:8}}>💀 Veng</span>}
-          Prayer: {p.active_prayer !== 'none' ? p.active_prayer : 'off'}
-        </div>
+    document.getElementById('prev-step').onclick = () => moveStep(-1);
+  }
+
+  function renderConfirmStep() {
+    const character = selectedCharacter();
+
+    panelCardEl.innerHTML = `
+      <div class="panel-head">
+        <h2>${state.mode === 'agent' ? 'Register Agent' : 'Play'} · Confirm</h2>
+        <div class="step-meta">Step ${state.mode === 'agent' ? '5' : '4'} of ${state.mode === 'agent' ? '5' : '4'}</div>
       </div>
-    );
-  };
-
-  return (
-    <div className="fade-in">
-      <div className="card">
-        <h2>📺 Fight Viewer</h2>
-        <div style={{display:'flex', gap:8, marginBottom:16}}>
-          <input value={fightId} onChange={e => setFightId(e.target.value)} placeholder="Enter fight ID" style={{flex:1}} />
-          <button className="btn btn-gold" onClick={loadFight}>Watch</button>
-        </div>
-        {error && <p style={{color:'var(--red)', fontSize:13}}>{error}</p>}
+      <div class="list">
+        <div class="row"><div>Wallet</div><div class="mono">${escapeHtml(state.auth?.account?.wallet_address || '-')}</div></div>
+        <div class="row"><div>Account Type</div><div>${escapeHtml(state.accountType)}</div></div>
+        <div class="row"><div>Character</div><div>${escapeHtml(character?.name || '-')}</div></div>
+        <div class="row"><div>Class</div><div>${escapeHtml(state.selectedClass)}</div></div>
+        <div class="row"><div>Avatar</div><div class="mono">${escapeHtml(state.selectedAvatar)}</div></div>
+        ${state.mode === 'agent' ? `<div class="row"><div>Runtime Label</div><div>${escapeHtml(state.runtimeLabel || '-')}</div></div>` : ''}
       </div>
+      <div class="actions">
+        <button class="ui primary" id="enter-world">Enter World</button>
+        <button class="ui ghost" id="prev-step">Back</button>
+      </div>
+    `;
 
-      {fight && (
-        <>
-          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16}}>
-            <div style={{fontSize:13, color:'var(--text-dim)'}}>
-              <span className={`status-dot status-${fight.status === 'in_progress' ? 'active' : fight.status === 'fight_over' ? 'over' : 'waiting'}`} />
-              {fight.arena} · Round {fight.round} · Tick {fight.tick}
-            </div>
-            <div style={{fontFamily:"'Press Start 2P'", fontSize:11, color:'var(--gold)'}}>
-              {fight.rounds_won?.p1 || 0} - {fight.rounds_won?.p2 || 0}
-            </div>
-          </div>
+    document.getElementById('enter-world').onclick = () => finalizeAndEnterWorld();
+    document.getElementById('prev-step').onclick = () => moveStep(-1);
+  }
 
-          <div className="grid-2">
-            {renderPlayerPanel(fight.p1, 'P1')}
-            {renderPlayerPanel(fight.p2, 'P2')}
-          </div>
+  function renderFlow() {
+    showPanel(true);
 
-          {fight.last_result && (
-            <div className="card" style={{background:'#0c0c14', textAlign:'center'}}>
-              <div style={{display:'flex', justifyContent:'center', gap:40, marginBottom:8}}>
-                <div>
-                  <div style={{fontSize:11, color:'var(--text-dim)', marginBottom:4}}>{fight.p1?.agent_id}</div>
-                  {fight.last_result.p1_damage_dealt > 0
-                    ? <span className="hit-splat">{fight.last_result.p1_damage_dealt}</span>
-                    : <span className="hit-splat miss">0</span>}
-                </div>
-                <div style={{fontSize:20, color:'var(--gold)', alignSelf:'center'}}>⚔️</div>
-                <div>
-                  <div style={{fontSize:11, color:'var(--text-dim)', marginBottom:4}}>{fight.p2?.agent_id}</div>
-                  {fight.last_result.p2_damage_dealt > 0
-                    ? <span className="hit-splat">{fight.last_result.p2_damage_dealt}</span>
-                    : <span className="hit-splat miss">0</span>}
-                </div>
-              </div>
-              <p style={{fontSize:12, color:'var(--text-dim)', fontStyle:'italic'}}>{fight.last_result.narrative}</p>
-            </div>
-          )}
-
-          <div className="card">
-            <h2>📜 Fight Log</h2>
-            <div className="fight-log" ref={logRef}>
-              {(fight.history || []).map((h, i) => (
-                <div className="tick-entry" key={i}>
-                  <span className="tick-num">[{h.tick}]</span>
-                  <span>{h.narrative}</span>
-                </div>
-              ))}
-              {(!fight.history || fight.history.length === 0) && (
-                <div style={{color:'var(--text-dim)', fontStyle:'italic'}}>Waiting for first tick...</div>
-              )}
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-function LeaderboardPage() {
-  const [lb, setLb] = useState([]);
-  useEffect(() => { api('/arena/leaderboard').then(setLb); }, []);
-
-  return (
-    <div className="card fade-in">
-      <h2>🏆 Leaderboard</h2>
-      {lb.length === 0 ? (
-        <p style={{color:'var(--text-dim)'}}>No ranked agents yet.</p>
-      ) : (
-        <table>
-          <thead><tr><th>#</th><th>Agent</th><th>Class</th><th>ELO</th><th>Title</th><th>W</th><th>L</th><th>K/D</th></tr></thead>
-          <tbody>
-            {lb.map((a, i) => (
-              <tr key={a.agent_id}>
-                <td style={{fontFamily:"'Press Start 2P'", fontSize:10, color:'var(--gold)'}}>{a.rank}</td>
-                <td style={{fontWeight:600}}>{a.agent_id}</td>
-                <td><Badge combatClass={a.combat_class} /></td>
-                <td>{a.elo}</td>
-                <td><TitleBadge title={a.title} /></td>
-                <td style={{color:'var(--green)'}}>{a.wins}</td>
-                <td style={{color:'var(--red)'}}>{a.losses}</td>
-                <td>{a.kd}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
-}
-
-function SimulatePage() {
-  const [log, setLog] = useState([]);
-  const [running, setRunning] = useState(false);
-  const [fightData, setFightData] = useState(null);
-
-  const runSim = async () => {
-    setLog([]);
-    setRunning(true);
-
-    // Register two bots
-    const bot1 = { agent_id: `bot_${Date.now()}_1`, combat_class: 'melee', skills_md: '# Melee Bot\nAGS spec and pray flick.' };
-    const bot2 = { agent_id: `bot_${Date.now()}_2`, combat_class: 'magic', skills_md: '# Mage Bot\nIce barrage into veng.' };
-    await api('/arena/register', { method: 'POST', body: bot1 });
-    await api('/arena/register', { method: 'POST', body: bot2 });
-    setLog(l => [...l, `Registered ${bot1.agent_id} (melee) and ${bot2.agent_id} (magic)`]);
-
-    // Challenge
-    const ch = await api('/arena/challenge', { method: 'POST', body: { agent_id: bot1.agent_id, target_agent_id: bot2.agent_id, wager_amount: 50000 } });
-    setLog(l => [...l, `Challenge sent: ${ch.challenge?.challenge_id}`]);
-
-    // Accept
-    const acc = await api('/arena/accept', { method: 'POST', body: { agent_id: bot2.agent_id, challenge_id: ch.challenge.challenge_id } });
-    const fightId = acc.fight_id;
-    setLog(l => [...l, `Fight started: ${fightId}`]);
-
-    // Simple AI: random actions
-    const meleeActions = ['slash', 'whip_flick', 'stab', 'crush'];
-    const mageActions = ['fire_blast', 'ice_barrage', 'blood_barrage'];
-    const prayers = ['protect_melee', 'protect_ranged', 'protect_magic', 'none'];
-    const foods = ['none', 'none', 'none', 'eat_shark']; // 25% chance to eat
-    const pick = arr => arr[Math.floor(Math.random() * arr.length)];
-
-    let maxTicks = 150; // safety
-    while (maxTicks-- > 0) {
-      const state = await api(`/arena/fight/${fightId}`);
-      setFightData(state);
-
-      if (state.status === 'fight_over') {
-        setLog(l => [...l, `🏆 Fight over! ${state.last_result?.narrative}`]);
-        break;
-      }
-      if (state.status === 'round_over') {
-        setLog(l => [...l, `Round over. Score: ${state.rounds_won.p1}-${state.rounds_won.p2}`]);
-        await api('/arena/next-round', { method: 'POST', body: { fight_id: fightId } });
-        continue;
-      }
-
-      // Bot 1 action (melee)
-      const b1Food = state.p1.hp < 40 ? 'eat_shark' : 'none';
-      const b1Spec = state.p1.spec_bar >= 50 && state.p1.hp > 30 && Math.random() < 0.3 ? 'ags_spec' : 'none';
-      await api('/arena/action', { method: 'POST', body: {
-        agent_id: bot1.agent_id, fight_id: fightId,
-        action: pick(meleeActions), prayer: pick(prayers), food: b1Food, special: b1Spec
-      }});
-
-      // Bot 2 action (magic)
-      const b2Food = state.p2.hp < 40 ? 'eat_shark' : 'none';
-      const b2Spec = state.p2.spec_bar >= 50 && Math.random() < 0.2 ? 'staff_spec' : 'none';
-      const result = await api('/arena/action', { method: 'POST', body: {
-        agent_id: bot2.agent_id, fight_id: fightId,
-        action: pick(mageActions), prayer: pick(prayers), food: b2Food, special: b2Spec
-      }});
-
-      if (result.result) {
-        setLog(l => [...l, `[${result.result.tick}] ${result.result.narrative}`]);
-      }
-
-      await new Promise(r => setTimeout(r, 100)); // pacing
+    if (state.mode === 'highscores') {
+      renderHighscoresPanel();
+      return;
     }
-    setRunning(false);
-  };
 
-  return (
-    <div className="fade-in">
-      <div className="card">
-        <h2>🤖 Simulate Fight</h2>
-        <p style={{fontSize:13, color:'var(--text-dim)', marginBottom:12}}>
-          Spawns two AI bots and runs a full best-of-3 match with random actions.
-        </p>
-        <button className="btn btn-gold" onClick={runSim} disabled={running}>
-          {running ? 'Fighting...' : 'Run Simulation'}
-        </button>
-      </div>
+    if (!state.mode) {
+      showPanel(false);
+      return;
+    }
 
-      {fightData && (
-        <div className="grid-2" style={{marginBottom:16}}>
-          <div className="card" style={{background:'var(--surface2)'}}>
-            <h3>{fightData.p1?.agent_id} <Badge combatClass={fightData.p1?.combat_class} /></h3>
-            <HpBar current={fightData.p1?.hp || 0} max={99} label="HP" />
-          </div>
-          <div className="card" style={{background:'var(--surface2)'}}>
-            <h3>{fightData.p2?.agent_id} <Badge combatClass={fightData.p2?.combat_class} /></h3>
-            <HpBar current={fightData.p2?.hp || 0} max={99} label="HP" />
-          </div>
-        </div>
-      )}
+    if (state.step === 0) {
+      renderAuthStep();
+      return;
+    }
+    if (state.step === 1) {
+      renderCharacterStep();
+      return;
+    }
+    if (state.step === 2) {
+      renderClassAvatarStep();
+      return;
+    }
+    if (state.mode === 'agent' && state.step === 3) {
+      renderAgentProfileStep();
+      return;
+    }
+    renderConfirmStep();
+  }
 
-      {log.length > 0 && (
-        <div className="card">
-          <h2>📜 Simulation Log</h2>
-          <div className="fight-log">
-            {log.map((l, i) => <div className="tick-entry" key={i}>{l}</div>)}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
+  function render() {
+    renderFlow();
+  }
 
-// ── App ──
-function App() {
-  const [page, setPage] = useState('simulate');
-  const [myAgent, setMyAgent] = useState(null);
+  document.getElementById('cta-play').addEventListener('click', async () => {
+    resetFlow('play');
+    await loadAvatarOptions();
+    setStatus('Play flow opened.', 'info');
+    render();
+  });
 
-  return (
-    <div>
-      <div className="header">
-        <h1>⚔️ RS AGENT ARENA</h1>
-        <nav>
-          {[
-            ['simulate', '🤖 Simulate'],
-            ['register', '📝 Register'],
-            ['agents', '🗡️ Agents'],
-            ['fight', '📺 Watch'],
-            ['leaderboard', '🏆 Leaderboard'],
-          ].map(([key, label]) => (
-            <button key={key} className={page === key ? 'active' : ''} onClick={() => setPage(key)}>{label}</button>
-          ))}
-          <a
-            href="/game.html"
-            style={{
-              background: 'var(--surface2)',
-              border: '1px solid var(--border)',
-              color: 'var(--text)',
-              padding: '8px 16px',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '12px',
-              textDecoration: 'none',
-              display: 'inline-flex',
-              alignItems: 'center'
-            }}
-          >
-            🌍 Open World
-          </a>
-        </nav>
-      </div>
-      <div className="container">
-        {myAgent && (
-          <div style={{marginBottom:16, fontSize:12, color:'var(--text-dim)'}}>
-            Logged in as <strong style={{color:'var(--gold)'}}>{myAgent.agent_id}</strong> <Badge combatClass={myAgent.combat_class} />
-          </div>
-        )}
-        {page === 'register' && <RegisterPage onRegistered={setMyAgent} />}
-        {page === 'agents' && <AgentsPage myAgent={myAgent} />}
-        {page === 'fight' && <FightViewer />}
-        {page === 'leaderboard' && <LeaderboardPage />}
-        {page === 'simulate' && <SimulatePage />}
-      </div>
-    </div>
-  );
-}
+  document.getElementById('cta-agent').addEventListener('click', async () => {
+    resetFlow('agent');
+    await loadAvatarOptions();
+    setStatus('Agent registration flow opened.', 'info');
+    render();
+  });
 
-ReactDOM.render(<App />, document.getElementById('root'));
+  document.getElementById('cta-highscores').addEventListener('click', async () => {
+    state.mode = 'highscores';
+    state.highscoresTab = 'pvp';
+    state.highscoresRows = [];
+    showPanel(true);
+    renderHighscoresPanel();
+    await loadHighscores('pvp');
+  });
+
+  render();
+})();
 </script>
 </body>
 </html>

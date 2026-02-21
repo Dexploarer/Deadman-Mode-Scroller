@@ -1,0 +1,98 @@
+[
+  {
+    "id": "player_melee",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body fantasy warrior sprite sheet frame, red steel armor, one-handed sword, old-school MMORPG 2007-inspired low-detail painterly style, clean silhouette, transparent background"
+  },
+  {
+    "id": "player_ranged",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body fantasy ranger sprite sheet frame, green leather armor, shortbow, old-school MMORPG 2007-inspired low-detail painterly style, clean silhouette, transparent background"
+  },
+  {
+    "id": "player_magic",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body fantasy mage sprite sheet frame, blue robes, runic staff, old-school MMORPG 2007-inspired low-detail painterly style, clean silhouette, transparent background"
+  },
+  {
+    "id": "npc_villager",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "friendly medieval villager npc full-body sprite, old-school fantasy MMORPG 2007-inspired style, neutral pose, transparent background"
+  },
+  {
+    "id": "bg_surface_main",
+    "kind": "background",
+    "size": "1536x1024",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "fantasy countryside with castle silhouettes, lumbridge-like village vibe, painted matte background for side-scroller game, daytime sky, no text"
+  },
+  {
+    "id": "bg_runecraft_nexus",
+    "kind": "background",
+    "size": "1536x1024",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "arcane rune temple floating crystals and altar circle, painted matte background for side-scroller game, mystical blue lighting, no text"
+  },
+  {
+    "id": "bg_wilderness_depths",
+    "kind": "background",
+    "size": "1536x1024",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "dangerous wasteland with dead trees and ruined obelisks, painted matte background for side-scroller game, crimson fog, no text"
+  },
+  {
+    "id": "bg_shadow_dungeon",
+    "kind": "background",
+    "size": "1536x1024",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "ancient underground dungeon corridor with torches and stone arches, painted matte background for game interior cell, no text"
+  },
+  {
+    "id": "ui_panel_texture",
+    "kind": "ui",
+    "size": "1024x1024",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "parchment and hammered metal fantasy UI panel texture tileable, high contrast edges, no text, transparent corners"
+  },
+  {
+    "id": "ui_spellbook_icon",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "single icon, glowing rune spellbook emblem, old-school fantasy game UI icon, transparent background"
+  },
+  {
+    "id": "ui_quest_icon",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "single icon, parchment quest scroll with wax seal, old-school fantasy game UI icon, transparent background"
+  },
+  {
+    "id": "ui_trade_icon",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "single icon, crossed coins and handshake symbol, old-school fantasy game UI icon, transparent background"
+  }
+]

@@ -3,7 +3,9 @@ import { createDefaultProgress } from "../progression";
 import {
   canGatherNode,
   getPortalById,
+  getPortalHopDistance,
   getWorldAreas,
+  isTravelWithinBudget,
   getWorldPortals,
   makeDefaultResourceNodes,
   markNodeDepleted,
@@ -19,6 +21,12 @@ describe("world resource nodes", () => {
     expect(types.has("magic_tree")).toBe(true);
     expect(types.has("shark_spot")).toBe(true);
     expect(types.has("law_altar")).toBe(true);
+    expect(types.has("cooking_range")).toBe(true);
+
+    const membersLocked = nodes.filter((n) => n.members_only);
+    expect(membersLocked.length).toBeGreaterThan(0);
+    expect(membersLocked.some((n) => n.skill === "agility")).toBe(true);
+    expect(membersLocked.some((n) => n.skill === "construction")).toBe(true);
   });
 
   it("blocks gather below required level", () => {
@@ -49,8 +57,16 @@ describe("world resource nodes", () => {
     const questPortal = getPortalById("quest_portal");
 
     expect(areas.some((area) => area.area_id === "runecraft_nexus")).toBe(true);
+    expect(areas.some((area) => area.area_id === "skills_guild" && area.shared === true)).toBe(true);
     expect(areas.some((area) => area.area_id === "quest_shard" && area.shared === false)).toBe(true);
     expect(portals.some((portal) => portal.portal_id === "depths_portal")).toBe(true);
+    expect(portals.some((portal) => portal.portal_id === "surface_loop_east")).toBe(true);
     expect(questPortal?.default_scope).toBe("personal");
+  });
+
+  it("keeps travel within portal hop budget for core activity regions", () => {
+    expect(isTravelWithinBudget("surface_main", "runecraft_nexus")).toBe(true);
+    expect(isTravelWithinBudget("surface_main", "shadow_dungeon")).toBe(true);
+    expect(getPortalHopDistance("surface_main", "shadow_dungeon")).toBeLessThanOrEqual(2);
   });
 });

@@ -14,6 +14,12 @@ canvas{display:block}
   color:#e0e0e0;font-size:14px;display:none;pointer-events:auto;z-index:20}
 #dialogue-box .speaker{color:#d4a017;font-weight:bold;margin-bottom:6px;font-size:13px}
 #dialogue-box .text{line-height:1.5}
+#dialogue-box .choices{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+#dialogue-box .choice-btn{
+  border:1px solid #56607d;background:rgba(24,30,46,.9);color:#d4e1ff;padding:6px 8px;
+  text-align:left;font-family:'Courier New',monospace;font-size:12px;cursor:pointer
+}
+#dialogue-box .choice-btn:hover{background:rgba(34,44,68,.95)}
 #dialogue-box .prompt{color:#888;font-size:11px;margin-top:8px}
 #zone-label{position:fixed;top:20px;left:50%;transform:translateX(-50%);color:#d4a017;
   font-size:20px;font-weight:bold;text-shadow:0 0 10px rgba(212,160,23,.5);opacity:0;
@@ -26,6 +32,31 @@ canvas{display:block}
 #controls-help{position:fixed;bottom:20px;right:20px;color:#666;font-size:11px;text-align:right;z-index:15}
 #minimap-container{position:fixed;bottom:20px;left:20px;z-index:15}
 #hp-prayer-hud{position:fixed;top:20px;right:20px;z-index:15}
+#persistent-menu{
+  position:fixed;top:16px;left:16px;z-index:40;pointer-events:auto;
+  display:flex;gap:6px;flex-wrap:wrap;max-width:min(96vw,720px)
+}
+#persistent-menu button{
+  padding:6px 10px;border:1px solid #3a4f72;background:rgba(8,14,24,.92);color:#d4e4ff;
+  border-radius:6px;font-family:'Courier New',monospace;font-size:11px;cursor:pointer
+}
+#persistent-menu button:hover{border-color:#6a8fc9;background:rgba(16,26,42,.95)}
+#tutorial-tracker{
+  position:fixed;top:62px;left:16px;z-index:39;pointer-events:auto;
+  min-width:280px;max-width:min(96vw,420px);display:none;
+  border:1px solid #3d577f;border-radius:8px;background:rgba(8,13,24,.92);
+  color:#d6e6ff;font-family:'Courier New',monospace;padding:10px
+}
+#tutorial-tracker .title{font-size:12px;color:#8fd2ff;margin-bottom:6px}
+#tutorial-tracker .goal{font-size:11px;color:#8c9eb6;margin-bottom:3px}
+#tutorial-tracker .goal.done{color:#83d7a8}
+#tutorial-tracker .meta{font-size:10px;color:#6d809c;margin-top:6px}
+#tutorial-tracker .controls{display:flex;gap:6px;margin-top:6px}
+#tutorial-tracker .controls button{
+  padding:4px 8px;border:1px solid #40597a;border-radius:4px;background:#1a2b42;color:#d6e6ff;
+  font-family:'Courier New',monospace;font-size:10px;cursor:pointer
+}
+#tutorial-tracker .controls button.warn{background:#5a2a2a;border-color:#8a4a4a}
 </style>
 </head>
 <body>
@@ -35,18 +66,27 @@ canvas{display:block}
   <div id="dialogue-box">
     <div class="speaker"></div>
     <div class="text"></div>
+    <div class="choices"></div>
     <div class="prompt">[E] Continue / [Q] Close</div>
   </div>
   <div id="combat-overlay"></div>
   <div id="controls-help">
     WASD / Arrows — Move &nbsp;|&nbsp; SHIFT — Run &nbsp;|&nbsp; E — Interact &nbsp;|&nbsp; SPACE — Jump<br>
-    F — Register Class &nbsp;|&nbsp; Q — Cancel / Stop Gather
+    F — Register Class &nbsp;|&nbsp; B — Spellbook &nbsp;|&nbsp; K — Skills &nbsp;|&nbsp; M — Atlas &nbsp;|&nbsp; P/H/C/L/O — Menu &nbsp;|&nbsp; 1-4 — Dialogue Choices &nbsp;|&nbsp; Q — Cancel / Stop Train
   </div>
   <canvas id="minimap" width="180" height="60"></canvas>
   <div id="minimap-container"></div>
   <canvas id="hpbar" width="200" height="80"></canvas>
   <div id="hp-prayer-hud"></div>
 </div>
+<div id="persistent-menu">
+  <button id="menu-profile">Profile</button>
+  <button id="menu-highscores">Highscores</button>
+  <button id="menu-characters">Characters</button>
+  <button id="menu-logout">Logout</button>
+  <button id="menu-agent-console">Agent Console</button>
+</div>
+<div id="tutorial-tracker"></div>
 <script>
 // ═══════════════════════════════════════════════
 //  RUNESCAPE AGENT ARENA — 2D OPEN WORLD ENGINE
@@ -58,6 +98,8 @@ const minimapC = document.getElementById('minimap');
 const minimapCtx = minimapC.getContext('2d');
 const hpC = document.getElementById('hpbar');
 const hpCtx = hpC.getContext('2d');
+const persistentMenuEl = document.getElementById('persistent-menu');
+const tutorialTrackerEl = document.getElementById('tutorial-tracker');
 
 // Position UI canvases
 minimapC.style.cssText = 'position:fixed;bottom:20px;left:20px;z-index:15;border:2px solid #d4a017;border-radius:4px;background:rgba(0,0,0,.7)';
@@ -76,18 +118,104 @@ const WORLD_H = 800;
 const GROUND_Y = 520;
 const API = '/api/v1/arena';
 const DEFAULT_AREA_ID = 'surface_main';
+const GENERATED_ASSET_MANIFEST_URL = '/assets/generated/manifest.json';
 const AREA_WIDTHS = {
   surface_main: 12000,
   runecraft_nexus: 3400,
   wilderness_depths: 3600,
   shadow_dungeon: 3000,
+  skills_guild: 2800,
   quest_shard: 2200,
   emirs_arena: 2600,
 };
 
+const generatedAssets = new Map();
+const generatedAssetMeta = new Map();
+const backgroundAssetByArea = {
+  surface_main: 'bg_surface_main',
+  runecraft_nexus: 'bg_runecraft_nexus',
+  wilderness_depths: 'bg_wilderness_depths',
+  shadow_dungeon: 'bg_shadow_dungeon',
+};
+const DEFAULT_PLAYER_SPRITES = {
+  melee: 'player_melee',
+  ranged: 'player_ranged',
+  magic: 'player_magic',
+};
+
+function loadImage(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+async function loadGeneratedAssets() {
+  try {
+    const res = await apiFetch(GENERATED_ASSET_MANIFEST_URL);
+    if(!res.ok) return;
+    const manifest = await res.json();
+    if(!Array.isArray(manifest.assets)) return;
+
+    await Promise.all(
+      manifest.assets.map(async (asset) => {
+        if(!asset?.id || (!asset?.path && !asset?.blob_url)) return;
+        try {
+          const preferredUrl = asset.blob_url || asset.path;
+          const img = await loadImage(preferredUrl);
+          generatedAssets.set(asset.id, img);
+          generatedAssetMeta.set(asset.id, asset);
+        } catch {
+          // keep fallback renderer
+        }
+      })
+    );
+  } catch {
+    // keep fallback renderer
+  }
+}
+
+function formatItemName(itemId) {
+  return String(itemId || '').replaceAll('_', ' ');
+}
+
+function getItemAssetPath(itemId) {
+  if(!itemId) return null;
+  const namespaced = `item_${itemId}`;
+  if(generatedAssetMeta.has(namespaced)) {
+    const meta = generatedAssetMeta.get(namespaced);
+    return meta.blob_url || meta.path;
+  }
+  if(generatedAssetMeta.has(itemId)) {
+    const meta = generatedAssetMeta.get(itemId);
+    return meta.blob_url || meta.path;
+  }
+  return null;
+}
+
+function getSpriteOptionsForClass(combatClass) {
+  const options = [DEFAULT_PLAYER_SPRITES[combatClass] || `player_${combatClass}`];
+  const prefix = `player_${combatClass}_`;
+  for(const [assetId] of generatedAssetMeta) {
+    if(assetId.startsWith(prefix)) options.push(assetId);
+  }
+  return [...new Set(options)].sort((a, b) => a.localeCompare(b));
+}
+
+function renderItemInline(itemId, qty = null, valueColor = '#d4a017') {
+  const iconPath = getItemAssetPath(itemId);
+  const qtyText = qty == null ? '' : `<span style=\"color:${valueColor}\">${qty}</span>`;
+  const iconHtml = iconPath
+    ? `<img src=\"${iconPath}\" style=\"width:14px;height:14px;image-rendering:pixelated;border:1px solid #2f3a4c;background:rgba(12,15,20,.65)\" />`
+    : `<span style=\"display:inline-block;width:14px;height:14px;border:1px solid #2f3a4c;background:rgba(12,15,20,.65)\"></span>`;
+  return `<span style=\"display:inline-flex;align-items:center;gap:6px\"><span>${iconHtml}</span><span>${formatItemName(itemId)}</span>${qtyText}</span>`;
+}
+
 // ─── INPUT ───
 const keys = {};
-addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; if(['e','q',' ','tab','m','b'].includes(e.key.toLowerCase())) e.preventDefault(); });
+addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; if(['e','q',' ','tab','m','b','k','i','j','n','t','g','p','h','c','l','o'].includes(e.key.toLowerCase())) e.preventDefault(); });
 addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
 // ─── COLORS ───
@@ -128,6 +256,11 @@ const AREA_ZONES = {
     { name: 'Dungeon Gate', x: 0, w: 900, sky: '#090b12', ground: '#111523', groundTop: '#2b3655', music: 'dungeon' },
     { name: 'Shadow Halls', x: 900, w: 1100, sky: '#07090f', ground: '#0d1020', groundTop: '#273454', music: 'dungeon' },
     { name: 'Ancient Vault', x: 2000, w: 1000, sky: '#05070c', ground: '#0a0d17', groundTop: '#23304d', music: 'dungeon' },
+  ],
+  skills_guild: [
+    { name: 'Guild Courtyard', x: 0, w: 900, sky: '#12242e', ground: '#203943', groundTop: '#4b7182', music: 'guild' },
+    { name: 'Workshop Wing', x: 900, w: 1000, sky: '#102028', ground: '#1c323b', groundTop: '#446777', music: 'guild' },
+    { name: 'Rooftop Course', x: 1900, w: 900, sky: '#0d1a22', ground: '#172a32', groundTop: '#3b5e6b', music: 'guild' },
   ],
   quest_shard: [
     { name: 'Quest Start', x: 0, w: 800, sky: '#12220f', ground: '#20331f', groundTop: '#3f6d32', music: 'quest' },
@@ -224,6 +357,27 @@ addObj('area_portal', 6680, GROUND_Y - 130, 64, 130, {
   portal_scope:'shared',
   tint:'#b03131',
 });
+addObj('area_portal', 4720, GROUND_Y - 130, 64, 130, {
+  label:'Skills Guild',
+  portal_id:'skills_guild_portal',
+  portal_kind:'travel',
+  portal_scope:'shared',
+  tint:'#4b8db8',
+});
+addObj('area_portal', 180, GROUND_Y - 130, 64, 130, {
+  label:'West Gate',
+  portal_id:'surface_loop_west',
+  portal_kind:'travel',
+  portal_scope:'shared',
+  tint:'#58b3a0',
+});
+addObj('area_portal', 11840, GROUND_Y - 130, 64, 130, {
+  label:'East Gate',
+  portal_id:'surface_loop_east',
+  portal_kind:'travel',
+  portal_scope:'shared',
+  tint:'#58b3a0',
+});
 
 // Runecraft Nexus
 addObj('area_portal', 220, GROUND_Y - 130, 64, 130, {
@@ -283,6 +437,22 @@ addObj('arena_pillar', 1320, GROUND_Y - 150, 36, 150, { area_id:'shadow_dungeon'
 addObj('torch', 1040, GROUND_Y - 100, 15, 100, { area_id:'shadow_dungeon' });
 addObj('torch', 1760, GROUND_Y - 100, 15, 100, { area_id:'shadow_dungeon' });
 
+// Skills Guild
+addObj('area_portal', 220, GROUND_Y - 130, 64, 130, {
+  area_id:'skills_guild',
+  label:'Surface',
+  portal_id:'return_surface_from_skills',
+  portal_kind:'travel',
+  portal_scope:'shared',
+  tint:'#d4a017',
+});
+addObj('building', 620, GROUND_Y - 130, 180, 130, { area_id:'skills_guild', roof:'#3a5566', label:'Skill Hall' });
+addObj('building', 1100, GROUND_Y - 130, 180, 130, { area_id:'skills_guild', roof:'#3f6172', label:'Workshop' });
+addObj('building', 1680, GROUND_Y - 130, 180, 130, { area_id:'skills_guild', roof:'#466b7c', label:'Contracts' });
+addObj('arena_pillar', 2160, GROUND_Y - 150, 34, 150, { area_id:'skills_guild', color:'#2f4f5d' });
+addObj('arena_pillar', 2480, GROUND_Y - 150, 34, 150, { area_id:'skills_guild', color:'#2f4f5d' });
+addObj('torch', 2290, GROUND_Y - 100, 15, 100, { area_id:'skills_guild' });
+
 // Quest shard (personal instance)
 addObj('area_portal', 220, GROUND_Y - 130, 64, 130, {
   area_id:'quest_shard',
@@ -309,7 +479,7 @@ const npcs = [
   { id:'guildmaster', name:'Guild Master', x:4420, y:GROUND_Y, zone:'Varrock',
     dialogue:['The Champions Guild welcomes worthy fighters.','To duel in Emir\'s Arena, head east to Al Kharid.','The portal there links to instanced duels.','Train your skills before risking the Wilderness.'],
     color:'#5533aa', hat:'#3a1a7a' },
-  { id:'oziach', name:'Oziach', x:5100, y:GROUND_Y, zone:'Varrock',
+  { id:'ozyach', name:'Oziach', x:5100, y:GROUND_Y, zone:'Varrock',
     dialogue:['You want to fight in the Arena?','You\'ll need more than courage. You\'ll need strategy.','Melee beats Ranged. Ranged beats Magic. Magic beats Melee.','Level your skills in Al Kharid before you queue.'],
     color:'#886633', hat:'#5a4420' },
   { id:'emir_herald', name:'Emir\'s Herald', x:6210, y:GROUND_Y, zone:'Al Kharid',
@@ -330,10 +500,44 @@ const npcs = [
   { id:'shadow_keeper', name:'Shadow Keeper', x:920, y:GROUND_Y, zone:'Shadow Halls', area_id:'shadow_dungeon',
     dialogue:['The Shadow Dungeon is a layered portal region.','Add more dungeon portals here to keep expanding the world.','This area is shared multiplayer by default.'],
     color:'#6d7fa8', hat:'#445577' },
+  { id:'guild_registrar', name:'Skills Registrar', x:720, y:GROUND_Y, zone:'Guild Courtyard', area_id:'skills_guild',
+    dialogue:['Welcome to the Skills Guild.','Every major RuneScape-style skill can be trained in this area or nearby shards.','Use [K] for your skill journal and [M] for the world atlas.','Teleport and portal chains keep travel short even as the world grows.'],
+    color:'#4b8db8', hat:'#315c7a' },
   { id:'quest_oracle', name:'Quest Oracle', x:980, y:GROUND_Y, zone:'Echo Trial', area_id:'quest_shard',
     dialogue:['This shard is your personal quest instance.','Only your agent can occupy this instance id.','Use the return portal when your trial is complete.'],
     color:'#5aa55a', hat:'#2e6a2e' },
 ];
+
+const questNpcProfiles = [
+  { id:'sir_amik', name:'Sir Amik', area_id:'skills_guild', x:420, zone:'Quest Promenade', color:'#60708a', hat:'#3e4e67', dialogue:['The White Knights need capable adventurers.','Complete field missions and report back for your reward.'] },
+  { id:'cook', name:'Cook', area_id:'skills_guild', x:560, zone:'Quest Promenade', color:'#9a6d42', hat:'#70492a', dialogue:['I need fresh ingredients for the feast.','Bring me flour, milk, and an egg.'] },
+  { id:'gypsy_aris', name:'Gypsy Aris', area_id:'skills_guild', x:700, zone:'Quest Promenade', color:'#7d4f91', hat:'#533268', dialogue:['Fate speaks through the cards and the stars.','A demon rises unless you prove your strength.'] },
+  { id:'doric', name:'Doric', area_id:'skills_guild', x:840, zone:'Quest Promenade', color:'#6f6f79', hat:'#4f4f59', dialogue:['My forge needs ore, fast.','Mine what I need and I will reward you.'] },
+  { id:'veronica', name:'Veronica', area_id:'skills_guild', x:980, zone:'Quest Promenade', color:'#b15d7b', hat:'#7f3d56', dialogue:['Ernest has gone missing again.','Help me recover the machine parts and find him.'] },
+  { id:'general_bentnoze', name:'General Bentnoze', area_id:'skills_guild', x:1120, zone:'Quest Promenade', color:'#557a4e', hat:'#365230', dialogue:['Our goblin colors must be perfect.','Bring the dyes and settle this diplomacy.'] },
+  { id:'wizard_mizgog', name:'Wizard Mizgog', area_id:'runecraft_nexus', x:780, zone:'Rune Altars', color:'#4f62a7', hat:'#2f3f7a', dialogue:['Imp thieves stole my ritual beads.','Recover them and the tower will aid you.'] },
+  { id:'squire', name:'Squire', area_id:'skills_guild', x:1260, zone:'Quest Promenade', color:'#7d6f5e', hat:'#584c3f', dialogue:['A ceremonial sword has gone missing.','Find a replacement worthy of the knights.'] },
+  { id:'redbeard_frank', name:'Redbeard Frank', area_id:'surface_main', x:3560, zone:'Varrock Docks', color:'#8a4f43', hat:'#5f3028', dialogue:['Treasure favors the bold.','Follow the map and key if you want the loot.'] },
+  { id:'hassan', name:'Hassan', area_id:'surface_main', x:6080, zone:'Al Kharid', color:'#927348', hat:'#684f31', dialogue:['Prince Ali must be rescued discreetly.','Gather what we need and return quickly.'] },
+  { id:'father_aereck', name:'Father Aereck', area_id:'skills_guild', x:1400, zone:'Quest Promenade', color:'#8c8c96', hat:'#61616b', dialogue:['A spirit cannot rest in peace.','Help me recover what was lost.'] },
+  { id:'romeo', name:'Romeo', area_id:'skills_guild', x:1540, zone:'Quest Promenade', color:'#a76565', hat:'#6f4444', dialogue:['My heart is broken without Juliet.','Carry my messages and reunite us.'] },
+  { id:'duke_horacio', name:'Duke Horacio', area_id:'skills_guild', x:1680, zone:'Quest Promenade', color:'#677bb2', hat:'#435489', dialogue:['Rune mysteries threaten the realm.','Assist our scholars and restore order.'] },
+  { id:'fred_farmer', name:'Fred Farmer', area_id:'skills_guild', x:1820, zone:'Quest Promenade', color:'#6a8f4d', hat:'#476332', dialogue:['My sheep are missing wool again.','Bring me enough and I will pay well.'] },
+  { id:'reldo', name:'Reldo', area_id:'skills_guild', x:1960, zone:'Quest Promenade', color:'#6f6f9d', hat:'#4a4a72', dialogue:['Ancient records mention a shattered shield.','Recover both halves and reveal the truth.'] },
+  { id:'morgan', name:'Morgan', area_id:'skills_guild', x:2100, zone:'Quest Promenade', color:'#8f6464', hat:'#633f3f', dialogue:['A vampire stalks nearby settlements.','Take this warning and prepare to fight.'] },
+  { id:'hetty', name:'Hetty', area_id:'skills_guild', x:2240, zone:'Quest Promenade', color:'#7a5e9a', hat:'#523d6b', dialogue:['A proper potion requires rare ingredients.','Bring what I ask, then we begin the ritual.'] },
+];
+
+const npcIds = new Set(npcs.map((npc) => npc.id));
+for(const profile of questNpcProfiles) {
+  if(npcIds.has(profile.id)) continue;
+  npcs.push({
+    ...profile,
+    y: GROUND_Y,
+    sprite_key: `npc_${profile.id}`,
+  });
+  npcIds.add(profile.id);
+}
 
 npcs.forEach((npc) => {
   if(!npc.area_id) npc.area_id = DEFAULT_AREA_ID;
@@ -351,10 +555,234 @@ const player = {
   inArena: false, inFight: false,
   area_id: DEFAULT_AREA_ID,
   instance_id: null,
+  avatar_id: 'player_melee',
   skills: {},
   inventory: {},
+  bank: {},
   spellbook: [],
   equipment: { weapon: 'godsword', armor: 'torva', cape: 'fire' },
+  session_token: null,
+  wallet_address: null,
+  account_id: null,
+  actor_type: 'human',
+  character_name: null,
+  mode: 'f2p_2007',
+};
+
+const AUTH_STORAGE_KEY = 'rsa_auth_v1';
+const DEFAULT_GE_ITEM = 'logs';
+const economyUi = {
+  ge_item: DEFAULT_GE_ITEM,
+  ge_book: { buys: [], sells: [] },
+  ge_orders: [],
+  trades: { incoming: [], outgoing: [] },
+};
+const tutorialState = {
+  character_id: null,
+  started_at: 0,
+  skipped: false,
+  completed: false,
+  resume_override: false,
+  goals: {
+    interact_node: false,
+    open_spellbook: false,
+    use_portal: false,
+    open_quest_log: false,
+  },
+};
+
+function randomHex(length) {
+  const alphabet = '0123456789abcdef';
+  let out = '';
+  for(let i = 0; i < length; i++) {
+    out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  }
+  return out;
+}
+
+function createLocalWalletAddress() {
+  return `0x${randomHex(40)}`;
+}
+
+function normalizeWalletAddress(input) {
+  const raw = (input || '').trim().toLowerCase();
+  if(/^0x[0-9a-f]{40}$/.test(raw)) return raw;
+  return createLocalWalletAddress();
+}
+
+function loadStoredAuth() {
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    if(!parsed || typeof parsed !== 'object') return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveStoredAuth() {
+  try {
+    const payload = {
+      session_token: player.session_token,
+      wallet_address: player.wallet_address,
+      account_id: player.account_id,
+      character_id: player.agent_id,
+      combat_class: player.combat_class,
+      avatar_id: player.avatar_id,
+      actor_type: player.actor_type,
+      character_name: player.character_name,
+      mode: player.mode,
+    };
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(payload));
+  } catch {}
+}
+
+function clearStoredAuth() {
+  player.session_token = null;
+  player.wallet_address = null;
+  player.account_id = null;
+  player.actor_type = 'human';
+  player.character_name = null;
+  player.mode = 'f2p_2007';
+  player.avatar_id = DEFAULT_PLAYER_SPRITES[player.combat_class] || 'player_melee';
+  try {
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+  } catch {}
+}
+
+function tutorialStorageKey(characterId) {
+  return `rsa_tutorial_v1:${characterId}`;
+}
+
+function defaultTutorialGoals() {
+  return {
+    interact_node: false,
+    open_spellbook: false,
+    use_portal: false,
+    open_quest_log: false,
+  };
+}
+
+function persistTutorialState() {
+  if(!tutorialState.character_id) return;
+  const payload = {
+    character_id: tutorialState.character_id,
+    started_at: tutorialState.started_at,
+    skipped: tutorialState.skipped,
+    completed: tutorialState.completed,
+    goals: tutorialState.goals,
+  };
+  try {
+    localStorage.setItem(tutorialStorageKey(tutorialState.character_id), JSON.stringify(payload));
+  } catch {}
+}
+
+function hydrateTutorialState(characterId) {
+  tutorialState.character_id = characterId || null;
+  tutorialState.started_at = Date.now();
+  tutorialState.skipped = false;
+  tutorialState.completed = false;
+  tutorialState.resume_override = false;
+  tutorialState.goals = defaultTutorialGoals();
+  if(!characterId) {
+    updateTutorialTracker();
+    return;
+  }
+
+  try {
+    const raw = localStorage.getItem(tutorialStorageKey(characterId));
+    if(raw) {
+      const parsed = JSON.parse(raw);
+      tutorialState.started_at = Number(parsed.started_at) || Date.now();
+      tutorialState.skipped = !!parsed.skipped;
+      tutorialState.completed = !!parsed.completed;
+      tutorialState.goals = {
+        ...defaultTutorialGoals(),
+        ...(parsed.goals || {}),
+      };
+    }
+  } catch {}
+
+  maybeCompleteTutorial();
+  updateTutorialTracker();
+}
+
+function maybeCompleteTutorial() {
+  const done = Object.values(tutorialState.goals).every(Boolean);
+  if(done && !tutorialState.completed) {
+    tutorialState.completed = true;
+    tutorialState.skipped = false;
+    tutorialState.resume_override = false;
+    showFloatingText('First-60s guide completed', '#66d4ff');
+    persistTutorialState();
+  }
+}
+
+function markTutorialGoal(goal) {
+  if(!tutorialState.character_id) return;
+  if(!(goal in tutorialState.goals)) return;
+  if(tutorialState.goals[goal]) return;
+  tutorialState.goals[goal] = true;
+  maybeCompleteTutorial();
+  persistTutorialState();
+  updateTutorialTracker();
+}
+
+function isTutorialWithinWindow() {
+  if(!tutorialState.started_at) return false;
+  return (Date.now() - tutorialState.started_at) <= 60_000;
+}
+
+function updateTutorialTracker() {
+  if(!tutorialTrackerEl) return;
+  if(!player.registered || !tutorialState.character_id) {
+    tutorialTrackerEl.style.display = 'none';
+    tutorialTrackerEl.innerHTML = '';
+    return;
+  }
+
+  const withinWindow = isTutorialWithinWindow();
+  const shouldShow = !tutorialState.completed && !tutorialState.skipped && (withinWindow || tutorialState.resume_override);
+  if(!shouldShow) {
+    tutorialTrackerEl.style.display = 'none';
+    tutorialTrackerEl.innerHTML = '';
+    return;
+  }
+
+  const remainingMs = Math.max(0, 60_000 - (Date.now() - tutorialState.started_at));
+  const remaining = Math.ceil(remainingMs / 1000);
+  const goals = [
+    ['interact_node', 'Interact node'],
+    ['open_spellbook', 'Open spellbook'],
+    ['use_portal', 'Use portal'],
+    ['open_quest_log', 'Open quest log'],
+  ];
+  tutorialTrackerEl.style.display = 'block';
+  tutorialTrackerEl.innerHTML = `
+    <div class=\"title\">First 60 Seconds</div>
+    ${goals.map(([key, label]) => `<div class=\"goal ${tutorialState.goals[key] ? 'done' : ''}\">${tutorialState.goals[key] ? '✓' : '○'} ${label}</div>`).join('')}
+    <div class=\"meta\">${withinWindow ? `${remaining}s left in guided window` : 'Guided window expired. You can still resume manually.'}</div>
+    <div class=\"controls\">
+      <button onclick=\"window.resumeTutorial()\">Resume</button>
+      <button class=\"warn\" onclick=\"window.skipTutorial()\">Skip</button>
+    </div>
+  `;
+}
+
+window.skipTutorial = function() {
+  tutorialState.skipped = true;
+  tutorialState.resume_override = false;
+  persistTutorialState();
+  updateTutorialTracker();
+};
+
+window.resumeTutorial = function() {
+  tutorialState.skipped = false;
+  tutorialState.resume_override = true;
+  persistTutorialState();
+  updateTutorialTracker();
 };
 
 // ─── CAMERA ───
@@ -402,6 +830,24 @@ let skillActionNodeId = null;
 let registrationOpen = false;
 let arenaLoopTimer = null;
 let worldReturnPoint = null;
+let questLog = [];
+
+const F2P_SKILL_DISPLAY_ORDER = [
+  'attack','strength','defence','hitpoints','ranged','magic','prayer','runecrafting',
+  'mining','smithing','fishing','cooking','firemaking','woodcutting','crafting',
+];
+const MEMBERS_SKILL_DISPLAY_ORDER = [
+  'construction','agility','herblore','thieving','fletching','slayer','hunter','farming','sailing',
+];
+const SKILL_DISPLAY_ORDER = F2P_SKILL_DISPLAY_ORDER;
+
+const SKILL_LABELS = {
+  attack:'Attack', strength:'Strength', defence:'Defence', hitpoints:'Hitpoints', ranged:'Ranged', magic:'Magic',
+  prayer:'Prayer', runecrafting:'Runecrafting', construction:'Construction', agility:'Agility', herblore:'Herblore',
+  thieving:'Thieving', crafting:'Crafting', fletching:'Fletching', slayer:'Slayer', hunter:'Hunter', mining:'Mining',
+  smithing:'Smithing', fishing:'Fishing', cooking:'Cooking', firemaking:'Firemaking', woodcutting:'Woodcutting',
+  farming:'Farming', sailing:'Sailing',
+};
 
 function getEquipmentForClass(combatClass) {
   if(combatClass === 'melee') return { weapon: 'godsword', armor: 'torva', cape: 'fire' };
@@ -412,6 +858,16 @@ function getEquipmentForClass(combatClass) {
 function getWorldSocketUrl() {
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   return `${protocol}//${location.host}/ws/arena`;
+}
+
+const nativeFetch = window.fetch.bind(window);
+async function apiFetch(input, init = {}) {
+  const headers = new Headers(init.headers || {});
+  const isApiPath = typeof input === 'string' && input.startsWith('/api/');
+  if(isApiPath && player.session_token && !headers.has('authorization')) {
+    headers.set('authorization', `Bearer ${player.session_token}`);
+  }
+  return nativeFetch(input, { ...init, headers });
 }
 
 function connectWorldSocket() {
@@ -477,6 +933,9 @@ function connectWorldSocket() {
         skillState.xp = gain.total_xp;
         player.skills[gain.skill] = skillState;
         if(gain.gained_xp > 0) {
+          markTutorialGoal('interact_node');
+        }
+        if(gain.gained_xp > 0) {
           showFloatingText(`+${gain.gained_xp} ${gain.skill} xp`, '#66d4ff');
         }
       }
@@ -485,6 +944,14 @@ function connectWorldSocket() {
       }
       if(data.type === 'inventory_update' && data.item_id) {
         player.inventory[data.item_id] = data.qty;
+      }
+      if(data.type === 'quest_update' && Array.isArray(data.quests)) {
+        questLog = data.quests;
+        const completed = (data.updates || []).find((update) => update.kind === 'completed');
+        if(completed) {
+          const quest = questLog.find((entry) => entry.quest_id === completed.quest_id);
+          showFloatingText(`Quest complete: ${quest?.name || completed.quest_id}`, '#d4a017');
+        }
       }
       if(data.type === 'world_interact_result' && data.ok === false && data.payload?.error) {
         showFloatingText(data.payload.error, '#cc3333');
@@ -516,6 +983,7 @@ function sendWorldUpdate(force = false) {
     type: 'world_update',
     agent_id: player.agent_id,
     combat_class: player.combat_class,
+    avatar_id: player.avatar_id || DEFAULT_PLAYER_SPRITES[player.combat_class] || `player_${player.combat_class}`,
     x: Math.round(player.x),
     y: Math.round(player.y),
     zone: zoneName,
@@ -559,12 +1027,26 @@ function drawText(text, x, y, col='#fff', size=12, align='center') {
 }
 
 // ─── DRAW CHARACTER (programmatic pixel-art style) ───
-function drawCharacter(x, y, facing, walkFrame, colors, w=24, h=40, equipment=null) {
+function drawCharacter(x, y, facing, walkFrame, colors, w=24, h=40, equipment=null, spriteKey=null) {
   const cx = x - cam.x;
   const cy = y - cam.y;
   const f = facing;
   const bob = Math.sin(walkFrame * 0.3) * 2;
   const legSwing = Math.sin(walkFrame * 0.6) * 6;
+
+  if(spriteKey && generatedAssets.has(spriteKey)) {
+    const sprite = generatedAssets.get(spriteKey);
+    const drawW = w * 2.2;
+    const drawH = h * 2.2;
+    ctx.save();
+    ctx.translate(cx, cy - h * 1.1 + bob);
+    if(f < 0) {
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(sprite, -drawW / 2, -drawH + h * 0.9, drawW, drawH);
+    ctx.restore();
+    return;
+  }
 
   // Shadow
   ctx.fillStyle = 'rgba(0,0,0,0.3)';
@@ -650,19 +1132,48 @@ function drawCharacter(x, y, facing, walkFrame, colors, w=24, h=40, equipment=nu
 }
 
 // ─── DRAW NPC ───
+function getNpcQuestMarker(npcId) {
+  if(!Array.isArray(questLog) || questLog.length === 0) return null;
+
+  for(const quest of questLog) {
+    if(quest.turn_in_npc_id === npcId && quest.status === 'completed' && !quest.reward_claimed) {
+      return '?';
+    }
+  }
+  for(const quest of questLog) {
+    if(quest.giver_npc_id === npcId && quest.status === 'not_started') {
+      return '!';
+    }
+  }
+  for(const quest of questLog) {
+    if((quest.giver_npc_id === npcId || quest.turn_in_npc_id === npcId) && quest.status === 'in_progress') {
+      return '*';
+    }
+  }
+  return null;
+}
+
 function drawNPC(npc) {
   const bobVal = Math.sin(tick * 0.03 + npc.x) * 2;
   const facing = player.x > npc.x ? 1 : -1;
+  const spriteKey = npc.sprite_key || (generatedAssetMeta.has(`npc_${npc.id}`) ? `npc_${npc.id}` : 'npc_villager');
 
   drawCharacter(npc.x, npc.y, facing, bobVal, {
     body: npc.color, hat: npc.hat, skin:'#c8a882', legs:'#2a2a3a'
-  }, 24, 40);
+  }, 24, 40, null, spriteKey);
 
   // Name tag
   const dist = Math.abs(player.x - npc.x);
   if(dist < 200) {
     const alpha = Math.max(0, 1 - dist/200);
     ctx.globalAlpha = alpha;
+    const marker = getNpcQuestMarker(npc.id);
+    if(marker) {
+      ctx.fillStyle = marker === '?' ? '#66d4ff' : marker === '!' ? '#d4a017' : '#99cc66';
+      ctx.font = 'bold 16px Courier New';
+      ctx.textAlign = 'center';
+      ctx.fillText(marker, npc.x - cam.x, npc.y - cam.y - 68);
+    }
     drawText(npc.name, npc.x, npc.y - 52, '#d4a017', 11);
     if(dist < 80) {
       drawText('[E] Talk', npc.x, npc.y - 64, '#888', 9);
@@ -991,6 +1502,34 @@ function lighten(hex, amt) {
   return `rgb(${r},${g},${b})`;
 }
 
+function getSkillVisual(skill) {
+  const visuals = {
+    mining: { color:'#aab0b9', icon:'⛏' },
+    woodcutting: { color:'#5a8f4f', icon:'🌲' },
+    fishing: { color:'#4fa7db', icon:'🐟' },
+    runecrafting: { color:'#7f8dff', icon:'✦' },
+    smithing: { color:'#c1a86a', icon:'⚒' },
+    cooking: { color:'#ff9955', icon:'🍲' },
+    firemaking: { color:'#ff5533', icon:'🔥' },
+    crafting: { color:'#b27ed6', icon:'◆' },
+    fletching: { color:'#79a06d', icon:'➶' },
+    herblore: { color:'#52b574', icon:'✿' },
+    agility: { color:'#62d4bf', icon:'↯' },
+    thieving: { color:'#c9c257', icon:'☗' },
+    hunter: { color:'#a07654', icon:'◌' },
+    slayer: { color:'#a55a5a', icon:'☠' },
+    farming: { color:'#72b45f', icon:'☘' },
+    construction: { color:'#b4845f', icon:'▦' },
+    prayer: { color:'#88a6ff', icon:'☼' },
+    sailing: { color:'#54b0bf', icon:'⚓' },
+  };
+  return visuals[skill] || { color:'#66aa44', icon:'●' };
+}
+
+function formatSkillName(skill) {
+  return SKILL_LABELS[skill] || skill.replace(/_/g, ' ');
+}
+
 // ─── GET CURRENT ZONE ───
 function getZone(x) {
   const zones = getAreaZones();
@@ -1000,30 +1539,134 @@ function getZone(x) {
 
 // ─── DIALOGUE SYSTEM ───
 const dialogueBox = document.getElementById('dialogue-box');
-function openDialogue(npc) {
-  dialogueState = { npc, lineIndex: 0 };
+const dialogueSpeakerEl = dialogueBox.querySelector('.speaker');
+const dialogueTextEl = dialogueBox.querySelector('.text');
+const dialogueChoicesEl = dialogueBox.querySelector('.choices');
+const dialoguePromptEl = dialogueBox.querySelector('.prompt');
+
+async function startDialogueTree(npcId) {
+  if(!player.agent_id) return null;
+  try {
+    const res = await apiFetch('/api/v1/world/dialogue/start', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        agent_id: player.agent_id,
+        npc_id: npcId,
+      }),
+    });
+    const data = await res.json();
+    if(!res.ok || !data.node) return null;
+    if(Array.isArray(data.quests)) {
+      questLog = data.quests;
+    }
+    return data.node;
+  } catch {
+    return null;
+  }
+}
+
+function renderDialogueTreeNode() {
+  if(!dialogueState || dialogueState.mode !== 'tree') return;
+  const node = dialogueState.node;
+  if(!node) { closeDialogue(); return; }
+
+  dialogueBox.style.display = 'block';
+  dialogueSpeakerEl.textContent = node.speaker || dialogueState.npc?.name || 'NPC';
+  dialogueTextEl.textContent = node.text;
+  dialogueChoicesEl.innerHTML = node.choices.map((choice, idx) => (
+    `<button class="choice-btn" onclick="chooseDialogueChoice('${choice.choice_id}')">[${idx + 1}] ${choice.text}</button>`
+  )).join('');
+  dialoguePromptEl.textContent = '[1-4] Choose | [E] Select single option | [Q] Close';
+}
+
+async function openDialogue(npc) {
+  const treeNode = await startDialogueTree(npc.id);
+  if(treeNode) {
+    dialogueState = { mode:'tree', npc, npcId:npc.id, node:treeNode };
+    renderDialogueTreeNode();
+    return;
+  }
+
+  dialogueState = { mode:'linear', npc, lineIndex: 0 };
   showDialogueLine();
 }
+
 function showDialogueLine() {
-  if(!dialogueState) return;
+  if(!dialogueState || dialogueState.mode !== 'linear') return;
   const {npc, lineIndex} = dialogueState;
   if(lineIndex >= npc.dialogue.length) { closeDialogue(); return; }
   dialogueBox.style.display = 'block';
-  dialogueBox.querySelector('.speaker').textContent = npc.name;
-  dialogueBox.querySelector('.text').textContent = npc.dialogue[lineIndex];
+  dialogueSpeakerEl.textContent = npc.name;
+  dialogueTextEl.textContent = npc.dialogue[lineIndex];
+  dialogueChoicesEl.innerHTML = '';
   if(npc.isArenaMaster && lineIndex === npc.dialogue.length - 1) {
-    dialogueBox.querySelector('.prompt').textContent = '[E] Continue | [F] Register for Arena | [Q] Close';
+    dialoguePromptEl.textContent = '[E] Continue | [F] Register for Arena | [Q] Close';
   } else {
-    dialogueBox.querySelector('.prompt').textContent = '[E] Continue | [Q] Close';
+    dialoguePromptEl.textContent = '[E] Continue | [Q] Close';
   }
 }
+
+window.chooseDialogueChoice = async function(choiceId) {
+  if(!dialogueState || dialogueState.mode !== 'tree' || !player.agent_id) return;
+  try {
+    const res = await apiFetch('/api/v1/world/dialogue/choose', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        agent_id: player.agent_id,
+        npc_id: dialogueState.npcId,
+        node_id: dialogueState.node?.node_id,
+        choice_id: choiceId,
+      }),
+    });
+    const data = await res.json();
+    if(!res.ok) {
+      showFloatingText(data.error || 'Dialogue failed', '#cc3333');
+      return;
+    }
+
+    if(Array.isArray(data.quests)) {
+      questLog = data.quests;
+    }
+    if(data.skills) {
+      player.skills = data.skills;
+    }
+    if(data.inventory) {
+      player.inventory = data.inventory;
+    }
+    if(data.reward?.quest_id) {
+      const quest = questLog.find((entry) => entry.quest_id === data.reward.quest_id);
+      showFloatingText(`Reward claimed: ${quest?.name || data.reward.quest_id}`, '#66d4ff');
+    }
+
+    if(data.closed || !data.node) {
+      closeDialogue();
+      return;
+    }
+
+    dialogueState.node = data.node;
+    renderDialogueTreeNode();
+  } catch {
+    showFloatingText('Dialogue failed', '#cc3333');
+  }
+};
+
 function advanceDialogue() {
   if(!dialogueState) return;
+  if(dialogueState.mode === 'tree') {
+    const nodeChoices = dialogueState.node?.choices || [];
+    if(nodeChoices.length === 1) {
+      window.chooseDialogueChoice(nodeChoices[0].choice_id);
+    }
+    return;
+  }
   dialogueState.lineIndex++;
   showDialogueLine();
 }
 function closeDialogue() {
   dialogueState = null;
+  dialogueChoicesEl.innerHTML = '';
   dialogueBox.style.display = 'none';
 }
 
@@ -1046,11 +1689,40 @@ async function registerForArena() {
     showFloatingText('Already registered!', '#d4a017');
     return;
   }
+  const stored = loadStoredAuth();
+  const walletAddress = normalizeWalletAddress(
+    player.wallet_address || stored?.wallet_address || createLocalWalletAddress()
+  );
+  const meleeOptions = getSpriteOptionsForClass('melee');
+  const rangedOptions = getSpriteOptionsForClass('ranged');
+  const magicOptions = getSpriteOptionsForClass('magic');
   registrationOpen = true;
   combatOverlay.style.display = 'block';
   combatOverlay.innerHTML = `
     <div style="text-align:center">
       <div style="color:#d4a017;font-size:16px;margin-bottom:12px">⚔ ARENA REGISTRATION ⚔</div>
+      <div style="color:#8d95a6;font-size:11px;margin-bottom:8px">Wallet Identity (humans + autonomous agents use the same rules)</div>
+      <input id="wallet-address-input" value="${walletAddress}" style="width:420px;max-width:90%;padding:7px;background:#121723;border:1px solid #33495d;color:#9fb8d6;font-family:monospace;font-size:11px;margin-bottom:10px" />
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+        <div style="border:1px solid #33495d;padding:6px;background:rgba(14,20,30,.72)">
+          <div style="font-size:11px;color:#cc6666;margin-bottom:4px">Melee Avatar</div>
+          <select id="avatar-select-melee" style="width:100%;padding:5px;background:#121723;border:1px solid #33495d;color:#c1d2e7;font-family:monospace;font-size:10px">
+            ${meleeOptions.map((id) => `<option value="${id}" ${id === (player.avatar_id || DEFAULT_PLAYER_SPRITES.melee) ? 'selected' : ''}>${id}</option>`).join('')}
+          </select>
+        </div>
+        <div style="border:1px solid #33495d;padding:6px;background:rgba(14,20,30,.72)">
+          <div style="font-size:11px;color:#66cc66;margin-bottom:4px">Ranged Avatar</div>
+          <select id="avatar-select-ranged" style="width:100%;padding:5px;background:#121723;border:1px solid #33495d;color:#c1d2e7;font-family:monospace;font-size:10px">
+            ${rangedOptions.map((id) => `<option value="${id}" ${id === DEFAULT_PLAYER_SPRITES.ranged ? 'selected' : ''}>${id}</option>`).join('')}
+          </select>
+        </div>
+        <div style="border:1px solid #33495d;padding:6px;background:rgba(14,20,30,.72)">
+          <div style="font-size:11px;color:#6699ff;margin-bottom:4px">Magic Avatar</div>
+          <select id="avatar-select-magic" style="width:100%;padding:5px;background:#121723;border:1px solid #33495d;color:#c1d2e7;font-family:monospace;font-size:10px">
+            ${magicOptions.map((id) => `<option value="${id}" ${id === DEFAULT_PLAYER_SPRITES.magic ? 'selected' : ''}>${id}</option>`).join('')}
+          </select>
+        </div>
+      </div>
       <div style="margin-bottom:8px;color:#aaa">Choose your combat class:</div>
       <div style="display:flex;gap:10px;justify-content:center;margin-bottom:12px">
         <button onclick="selectClass('melee')" style="padding:8px 16px;background:#cc3333;border:2px solid #ff4444;color:#fff;cursor:pointer;font-family:monospace;font-size:13px">⚔ Melee</button>
@@ -1061,17 +1733,68 @@ async function registerForArena() {
     </div>`;
 }
 
+async function authenticateWalletSession(walletInput, combatClass) {
+  const walletAddress = normalizeWalletAddress(walletInput || player.wallet_address || createLocalWalletAddress());
+  const challengeRes = await apiFetch('/api/v1/auth/wallet/challenge', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ wallet_address: walletAddress }),
+  });
+  const challengeData = await challengeRes.json();
+  if(!challengeRes.ok || !challengeData?.nonce) {
+    throw new Error(challengeData?.error || 'Wallet challenge failed');
+  }
+
+  const verifyRes = await apiFetch('/api/v1/auth/wallet/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      wallet_address: walletAddress,
+      nonce: challengeData.nonce,
+      signature: `signed:${walletAddress}:${challengeData.nonce}`,
+      character_name: `Agent_${walletAddress.slice(2, 8)}`,
+      combat_class: combatClass,
+    }),
+  });
+  const verifyData = await verifyRes.json();
+  if(!verifyRes.ok || !verifyData?.session_token || !verifyData?.character?.character_id) {
+    throw new Error(verifyData?.error || 'Wallet verify failed');
+  }
+
+  player.session_token = verifyData.session_token;
+  player.wallet_address = verifyData.account?.wallet_address || walletAddress;
+  player.account_id = verifyData.account?.account_id || null;
+  player.agent_id = verifyData.character.character_id;
+  player.character_name = verifyData.character?.name || player.character_name;
+  player.mode = verifyData.character?.mode || player.mode;
+  player.actor_type = verifyData.account?.account_type || player.actor_type;
+  saveStoredAuth();
+
+  return verifyData;
+}
+
 window.selectClass = async function(cls) {
-  const id = 'Player_' + Math.random().toString(36).slice(2,6);
   try {
-    const res = await fetch(API + '/register', {
+    const walletInput = document.getElementById('wallet-address-input')?.value || '';
+    const selectedAvatar = document.getElementById(`avatar-select-${cls}`)?.value || DEFAULT_PLAYER_SPRITES[cls] || `player_${cls}`;
+    const auth = await authenticateWalletSession(walletInput, cls);
+    const id = auth.character.character_id;
+    const res = await apiFetch('/api/v1/arena/register/self', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({agent_id: id, combat_class: cls, prayer_book: 'normal'})
+      body: JSON.stringify({
+        combat_class: cls,
+        avatar_id: selectedAvatar,
+        prayer_book: 'normal',
+      }),
     });
     const data = await res.json();
-    if(data.status === 'registered' && data.agent?.agent_id) {
-      player.agent_id = data.agent.agent_id;
+    if(data.status === 'registered') {
+      player.agent_id = data.character?.character_id || id;
+      player.character_name = data.character?.name || player.character_name;
+      player.mode = data.character?.mode || player.mode;
+      player.actor_type = data.account_type || player.actor_type;
       player.combat_class = cls;
+      player.avatar_id = selectedAvatar;
       player.registered = true;
       player.area_id = DEFAULT_AREA_ID;
       player.instance_id = null;
@@ -1081,11 +1804,15 @@ window.selectClass = async function(cls) {
 
       // Update equipment based on class
       player.equipment = getEquipmentForClass(cls);
+      hydrateTutorialState(player.agent_id);
+      updateTutorialTracker();
+      saveStoredAuth();
 
       connectWorldSocket();
       sendWorldUpdate(true);
-      await loadProfile();
+      await loadCharacterState();
       await fetchResourceNodes();
+      await loadQuestJournal();
     } else {
       showFloatingText(data.error || 'Registration failed!', '#cc3333');
     }
@@ -1096,6 +1823,9 @@ function setWorldStateFromServer(world) {
   if(!world) return;
   if(typeof world.x === 'number') player.x = world.x;
   if(typeof world.y === 'number') player.y = world.y;
+  if(typeof world.avatar_id === 'string' && world.avatar_id.length > 0) {
+    player.avatar_id = world.avatar_id;
+  }
   player.area_id = world.area_id || DEFAULT_AREA_ID;
   player.instance_id = world.instance_id || null;
   worldAgents.clear();
@@ -1113,14 +1843,81 @@ function setWorldStateFromServer(world) {
 async function loadProfile() {
   if(!player.agent_id) return;
   try {
-    const res = await fetch('/api/v1/profile/' + player.agent_id);
+    const res = await apiFetch('/api/v1/profile/' + player.agent_id);
     if(!res.ok) return;
     const data = await res.json();
     player.skills = data.progress?.skills || player.skills;
     player.inventory = data.progress?.inventory || player.inventory;
+    player.character_name = data.character?.name || player.character_name;
+    player.mode = data.character?.mode || player.mode;
+    questLog = data.quests || questLog;
     queuedForDuel = !!data.queue;
     if(data.world) {
       setWorldStateFromServer(data.world);
+      if(typeof data.world.avatar_id === 'string' && data.world.avatar_id.length > 0) {
+        player.avatar_id = data.world.avatar_id;
+      }
+    }
+    if(player.agent_id && tutorialState.character_id !== player.agent_id) {
+      hydrateTutorialState(player.agent_id);
+    }
+  } catch {}
+}
+
+async function loadCharacterState() {
+  if(!player.session_token) {
+    await loadProfile();
+    return;
+  }
+
+  try {
+    const res = await apiFetch('/api/v1/character/state');
+    if(!res.ok) {
+      if(res.status === 401) clearStoredAuth();
+      await loadProfile();
+      return;
+    }
+    const data = await res.json();
+    player.skills = data.progress?.skills || player.skills;
+    player.inventory = data.progress?.inventory || player.inventory;
+    player.bank = data.bank || player.bank || {};
+    player.agent_id = data.character_id || player.agent_id;
+    player.mode = data.mode || player.mode;
+    if(player.agent_id) player.registered = true;
+    queuedForDuel = !!data.queue;
+    if(data.world) {
+      setWorldStateFromServer(data.world);
+    }
+    if(Array.isArray(data.quests)) {
+      questLog = data.quests;
+    }
+    if(player.agent_id && tutorialState.character_id !== player.agent_id) {
+      hydrateTutorialState(player.agent_id);
+    }
+  } catch {
+    await loadProfile();
+  }
+}
+
+async function loadQuestJournal() {
+  if(!player.agent_id) return;
+  try {
+    if(player.session_token) {
+      const canonical = await apiFetch('/api/v1/quests');
+      if(canonical.ok) {
+        const data = await canonical.json();
+        if(Array.isArray(data.quests)) {
+          questLog = data.quests;
+          return;
+        }
+      }
+    }
+
+    const legacy = await apiFetch('/api/v1/world/quests/' + player.agent_id);
+    if(!legacy.ok) return;
+    const data = await legacy.json();
+    if(Array.isArray(data.quests)) {
+      questLog = data.quests;
     }
   } catch {}
 }
@@ -1129,7 +1926,7 @@ async function fetchResourceNodes() {
   try {
     const areaId = encodeURIComponent(player.area_id || DEFAULT_AREA_ID);
     const instanceParam = player.instance_id ? `&instance_id=${encodeURIComponent(player.instance_id)}` : '';
-    const res = await fetch(`/api/v1/world/nodes?area_id=${areaId}${instanceParam}`);
+    const res = await apiFetch(`/api/v1/world/nodes?area_id=${areaId}${instanceParam}`);
     if(!res.ok) return;
     const nodes = await res.json();
     if(Array.isArray(nodes)) {
@@ -1163,7 +1960,7 @@ function openDuelQueueOverlay() {
 window.joinDuelQueue = async function() {
   if(!player.agent_id) return;
   try {
-    const res = await fetch('/api/v1/world/portal/use', {
+    const res = await apiFetch('/api/v1/world/portal/use', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
@@ -1188,7 +1985,7 @@ window.joinDuelQueue = async function() {
 window.leaveDuelQueue = async function() {
   if(!player.agent_id) return;
   try {
-    const res = await fetch('/api/v1/arena/queue/leave', {
+    const res = await apiFetch('/api/v1/arena/queue/leave', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ agent_id: player.agent_id })
@@ -1200,6 +1997,107 @@ window.leaveDuelQueue = async function() {
   } catch {}
 };
 
+function openSkillsOverlay() {
+  if(!player.agent_id) {
+    registerForArena();
+    return;
+  }
+
+  const nearbyCounts = {};
+  resourceNodes.forEach((node) => {
+    if(!isSameShard(node.area_id, node.instance_id)) return;
+    nearbyCounts[node.skill] = (nearbyCounts[node.skill] || 0) + 1;
+  });
+
+  registrationOpen = true;
+  combatOverlay.style.display = 'block';
+  combatOverlay.innerHTML = `
+    <div style="text-align:left;max-height:380px;overflow:auto;min-width:560px">
+      <div style="text-align:center;color:#66d4ff;font-size:16px;margin-bottom:10px">📘 SKILL JOURNAL</div>
+      <div style="color:#aaa;margin-bottom:8px">Agent: ${player.agent_id} | Area: ${player.area_id || DEFAULT_AREA_ID}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        ${SKILL_DISPLAY_ORDER.map((skill) => {
+          const state = player.skills?.[skill] || { level: 1, xp: 0 };
+          const visual = getSkillVisual(skill);
+          const nearby = nearbyCounts[skill] || 0;
+          return `<div style="border:1px solid #334;padding:7px;background:rgba(12,14,20,.82)">
+            <div style="display:flex;justify-content:space-between;gap:8px;align-items:center">
+              <div style="color:${visual.color};font-size:12px">${visual.icon} ${formatSkillName(skill)}</div>
+              <div style="color:#d4a017;font-size:12px">Lv ${state.level}</div>
+            </div>
+            <div style="color:#8d95a6;font-size:10px;margin-top:3px">XP ${state.xp}</div>
+            <div style="color:#6f89a9;font-size:10px;margin-top:2px">Activities in area: ${nearby}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="margin-top:10px;border:1px solid #2c2f3b;background:rgba(10,12,18,.8);padding:8px">
+        <div style="color:#9ea8bb;font-size:11px;margin-bottom:4px">Members Skills (Locked in 2007 F2P mode)</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${MEMBERS_SKILL_DISPLAY_ORDER.map((skill) => `<span style="font-size:10px;color:#6e7687;border:1px solid #333;padding:2px 5px;border-radius:3px">${formatSkillName(skill)}</span>`).join('')}
+        </div>
+      </div>
+      <div style="color:#8a8a9a;font-size:11px;margin-top:8px">
+        Train with [E] near nodes, craft runes in Nexus, then cast teleports from [B] spellbook.
+      </div>
+      <div style="text-align:center;color:#666;font-size:11px;margin-top:8px">Press Q or K to close</div>
+    </div>`;
+}
+
+async function openAtlasOverlay() {
+  try {
+    const res = await apiFetch('/api/v1/world/atlas');
+    const data = await res.json();
+    if(!res.ok) {
+      showFloatingText(data.error || 'Atlas unavailable', '#cc3333');
+      return;
+    }
+    const currentAreaId = player.area_id || DEFAULT_AREA_ID;
+    const currentArea = (data.areas || []).find((area) => area.area_id === currentAreaId);
+    const exits = (data.portals || []).filter((portal) => portal.from_area_id === currentAreaId);
+    const areaSummary = (data.area_summaries || []).find((summary) => summary.area_id === currentAreaId);
+
+    registrationOpen = true;
+    combatOverlay.style.display = 'block';
+    combatOverlay.innerHTML = `
+      <div style="text-align:left;max-height:380px;overflow:auto;min-width:620px">
+        <div style="text-align:center;color:#8fd2ff;font-size:16px;margin-bottom:8px">🗺 WORLD ATLAS</div>
+        <div style="color:#aaa;margin-bottom:6px">
+          Area: ${(currentArea?.name || currentAreaId)} · Environment: ${(currentArea?.environment || 'unknown')} · Scope: ${(currentArea?.shared ? 'shared multiplayer' : 'personal instance')}
+        </div>
+        <div style="color:#8a8a9a;font-size:11px;margin-bottom:6px">
+          Scene: ${(areaSummary?.scene_type || currentArea?.scene_type || 'side_scroller')} · Travel Budget: ${(areaSummary?.core_budget_ok ? 'within 2 hops' : 'exceeds budget')}
+        </div>
+        <div style="color:#8a8a9a;font-size:11px;margin-bottom:10px">
+          Total Areas: ${(data.areas || []).length} · Portals: ${data.total_portals || 0} · Training Nodes: ${data.total_nodes || 0}
+        </div>
+        <div style="border:1px solid #334;padding:8px;background:rgba(14,16,24,.82);margin-bottom:8px">
+          <div style="color:#d4a017;font-size:12px;margin-bottom:6px">Exits From Current Area</div>
+          <div style="display:grid;grid-template-columns:1fr;gap:4px">
+            ${exits.map((portal) => `<div style="display:flex;justify-content:space-between;font-size:11px;color:#b6c2d8">
+              <span>${portal.name}</span>
+              <span style="color:#7fa1ff">${portal.to_area_id} (${portal.kind})</span>
+            </div>`).join('') || '<div style="font-size:11px;color:#777">No exits in this shard</div>'}
+          </div>
+        </div>
+        <div style="border:1px solid #334;padding:8px;background:rgba(14,16,24,.82);margin-bottom:8px">
+          <div style="color:#66d4ff;font-size:12px;margin-bottom:6px">Skills Available In Current Area</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            ${Object.entries(areaSummary?.skill_counts || {}).sort((a,b)=>a[0].localeCompare(b[0])).map(([skill, count]) => {
+              const visual = getSkillVisual(skill);
+              return `<span style="font-size:11px;padding:3px 6px;border:1px solid #3a4f66;background:rgba(10,20,30,.7);color:${visual.color}">
+                ${visual.icon} ${formatSkillName(skill)} ×${count}
+              </span>`;
+            }).join('') || '<span style="font-size:11px;color:#777">No skill nodes mapped</span>'}
+          </div>
+        </div>
+        <div style="color:#7e91a7;font-size:11px">Tip: [M] atlas + [B] spellbook + portals gives short travel even as the world expands.</div>
+        <div style="text-align:center;color:#666;font-size:11px;margin-top:8px">Press Q or M to close</div>
+      </div>`;
+  } catch {
+    showFloatingText('Atlas unavailable', '#cc3333');
+  }
+}
+
 async function openSpellbookOverlay() {
   if(!player.agent_id) {
     registerForArena();
@@ -1207,7 +2105,7 @@ async function openSpellbookOverlay() {
   }
 
   try {
-    const res = await fetch('/api/v1/world/spellbook/' + player.agent_id);
+    const res = await apiFetch('/api/v1/world/spellbook/' + player.agent_id);
     const data = await res.json();
     if(!res.ok) {
       showFloatingText(data.error || 'Spellbook unavailable', '#cc3333');
@@ -1222,16 +2120,18 @@ async function openSpellbookOverlay() {
         <div style=\"color:#aaa;margin-bottom:8px\">Magic: ${data.magic_level} | Runecrafting: ${data.runecrafting_level}</div>
         <div style=\"display:grid;grid-template-columns:1fr;gap:6px\">
           ${(data.spells || []).map((spell) => {
-            const runes = spell.runes.map((r) => `${r.item_id.replace('_',' ')} ${r.qty_owned}/${r.qty_required}`).join(' • ');
+            const runes = spell.runes.map((r) => renderItemInline(r.item_id, `${r.qty_owned}/${r.qty_required}`, '#9ab0ff')).join(' ');
             const buttonLabel = spell.teleport ? 'Cast Teleport' : 'Cast';
             const disabled = spell.can_cast ? '' : 'disabled';
             const bg = spell.can_cast ? '#294d9f' : '#333';
+            const destination = spell.teleport ? `${spell.teleport.area_id} · ${spell.teleport.zone}` : 'Combat spell';
             return `<div style=\"border:1px solid #445;padding:8px;background:rgba(20,20,40,.75)\">
               <div style=\"display:flex;justify-content:space-between;align-items:center;gap:10px\">
                 <div>
                   <div style=\"color:#d4e1ff;font-size:13px\">${spell.spell}</div>
                   <div style=\"color:#9ab0ff;font-size:11px\">Requires magic ${spell.magic_level_required}</div>
-                  <div style=\"color:#8a8a9a;font-size:11px\">${runes}</div>
+                  <div style=\"color:#8a8a9a;font-size:11px;display:flex;flex-wrap:wrap;gap:6px;margin-top:3px\">${runes}</div>
+                  <div style=\"color:#6787b3;font-size:10px\">${destination}</div>
                 </div>
                 <button onclick=\"castSpell('${spell.spell}')\" ${disabled} style=\"padding:6px 10px;background:${bg};border:1px solid #678;color:#fff;cursor:pointer;font-family:monospace;font-size:11px\">${buttonLabel}</button>
               </div>
@@ -1240,6 +2140,7 @@ async function openSpellbookOverlay() {
         </div>
         <div style=\"text-align:center;color:#666;font-size:11px;margin-top:8px\">Press Q or B to close</div>
       </div>`;
+    markTutorialGoal('open_spellbook');
   } catch {
     showFloatingText('Spellbook unavailable', '#cc3333');
   }
@@ -1248,7 +2149,7 @@ async function openSpellbookOverlay() {
 window.castSpell = async function(spellName) {
   if(!player.agent_id) return;
   try {
-    const res = await fetch('/api/v1/world/spell/cast', {
+    const res = await apiFetch('/api/v1/world/spell/cast', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ agent_id: player.agent_id, spell: spellName }),
@@ -1272,10 +2173,844 @@ window.castSpell = async function(spellName) {
       await fetchResourceNodes();
       sendWorldUpdate(true);
       showZoneLabel(getZone(player.x)?.name || 'Unknown');
+      if(data.scope === 'personal') {
+        showFloatingText('Entered personal instance', '#8fd2ff');
+      }
     }
+    await loadQuestJournal();
     await openSpellbookOverlay();
   } catch {
     showFloatingText('Spell failed', '#cc3333');
+  }
+};
+
+function escJs(value) {
+  return String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+
+function getGeneratedAssetPath(assetId) {
+  return generatedAssetMeta.get(assetId)?.path || null;
+}
+
+function closeCombatOverlay() {
+  combatOverlay.style.display = 'none';
+  registrationOpen = false;
+}
+
+function openOverlayHtml(html) {
+  registrationOpen = true;
+  combatOverlay.style.display = 'block';
+  combatOverlay.innerHTML = html;
+}
+
+function computeTotalLevelAndXp() {
+  let totalLevel = 0;
+  let totalXp = 0;
+  for(const skill of SKILL_DISPLAY_ORDER) {
+    const state = player.skills?.[skill];
+    totalLevel += Number(state?.level || 1);
+    totalXp += Number(state?.xp || 0);
+  }
+  return { totalLevel, totalXp };
+}
+
+async function openProfilePanel() {
+  if(!player.session_token) {
+    registerForArena();
+    return;
+  }
+  const [meRes, stateRes] = await Promise.all([
+    apiFetch('/api/v1/character/me').catch(() => null),
+    apiFetch('/api/v1/character/state').catch(() => null),
+  ]);
+  const meData = meRes && meRes.ok ? await meRes.json() : null;
+  const stateData = stateRes && stateRes.ok ? await stateRes.json() : null;
+  if(meData?.account) {
+    player.account_id = meData.account.account_id || player.account_id;
+    player.wallet_address = meData.account.wallet_address || player.wallet_address;
+    player.actor_type = meData.actor_type || meData.account.account_type || player.actor_type;
+    player.character_name = meData.selected_character?.name || player.character_name;
+    player.mode = meData.selected_character?.mode || player.mode;
+  }
+  if(stateData?.progress?.skills) player.skills = stateData.progress.skills;
+  if(stateData?.progress?.inventory) player.inventory = stateData.progress.inventory;
+  if(stateData?.bank) player.bank = stateData.bank;
+
+  const totals = computeTotalLevelAndXp();
+  const tutorialStatus = tutorialState.completed
+    ? 'completed'
+    : tutorialState.skipped
+      ? 'skipped'
+      : isTutorialWithinWindow() ? 'active' : 'expired';
+
+  openOverlayHtml(`
+    <div style=\"text-align:left;max-height:390px;overflow:auto;min-width:620px\">
+      <div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:8px\">
+        <div style=\"color:#d4e1ff;font-size:16px\">👤 Profile</div>
+        <div style=\"color:#7e91a7;font-size:11px\">Hotkeys: [P] profile · [H] highscores · [C] characters · [L] logout</div>
+      </div>
+      <div style=\"display:grid;grid-template-columns:1fr 1fr;gap:8px\">
+        <div style=\"border:1px solid #334;padding:8px;background:rgba(12,14,20,.84)\">
+          <div style=\"color:#8fd2ff;font-size:12px;margin-bottom:6px\">Identity</div>
+          <div style=\"font-size:11px;color:#b7c5dc;margin-bottom:3px\">Account: ${player.account_id || '-'}</div>
+          <div style=\"font-size:11px;color:#b7c5dc;margin-bottom:3px\">Wallet: ${player.wallet_address || '-'}</div>
+          <div style=\"font-size:11px;color:#b7c5dc;margin-bottom:3px\">Actor: ${player.actor_type || 'human'}</div>
+          <div style=\"font-size:11px;color:#b7c5dc\">Character: ${player.character_name || player.agent_id || '-'}</div>
+        </div>
+        <div style=\"border:1px solid #334;padding:8px;background:rgba(12,14,20,.84)\">
+          <div style=\"color:#8fd2ff;font-size:12px;margin-bottom:6px\">Build</div>
+          <div style=\"font-size:11px;color:#b7c5dc;margin-bottom:3px\">Class: ${player.combat_class}</div>
+          <div style=\"font-size:11px;color:#b7c5dc;margin-bottom:3px\">Mode: ${player.mode || 'f2p_2007'}</div>
+          <div style=\"font-size:11px;color:#b7c5dc;margin-bottom:3px\">Area: ${player.area_id || DEFAULT_AREA_ID}${player.instance_id ? ` (${player.instance_id})` : ''}</div>
+          <div style=\"font-size:11px;color:#b7c5dc\">Avatar: ${player.avatar_id || '-'}</div>
+        </div>
+      </div>
+      <div style=\"margin-top:8px;border:1px solid #334;padding:8px;background:rgba(12,14,20,.84)\">
+        <div style=\"color:#8fd2ff;font-size:12px;margin-bottom:6px\">Progress Snapshot</div>
+        <div style=\"font-size:11px;color:#b7c5dc;margin-bottom:3px\">Total Level: ${totals.totalLevel}</div>
+        <div style=\"font-size:11px;color:#b7c5dc;margin-bottom:3px\">Total XP: ${totals.totalXp}</div>
+        <div style=\"font-size:11px;color:#b7c5dc\">Tutorial: ${tutorialStatus}</div>
+      </div>
+      <div style=\"display:flex;gap:6px;flex-wrap:wrap;margin-top:8px\">
+        <button onclick=\"window.resumeTutorial()\" style=\"padding:5px 8px;background:#2a4f8a;border:1px solid #4f7cc5;color:#fff;font-size:10px;font-family:monospace;cursor:pointer\">Resume Tutorial</button>
+        <button onclick=\"window.openWorldHighscores('pvp')\" style=\"padding:5px 8px;background:#335a66;border:1px solid #4d8d9f;color:#fff;font-size:10px;font-family:monospace;cursor:pointer\">Open Highscores</button>
+        <button onclick=\"window.openCharacterPanel()\" style=\"padding:5px 8px;background:#4f4b30;border:1px solid #8a7a44;color:#fff;font-size:10px;font-family:monospace;cursor:pointer\">Manage Characters</button>
+      </div>
+      <div style=\"text-align:center;color:#666;font-size:11px;margin-top:8px\">Press Q or P to close</div>
+    </div>
+  `);
+}
+
+const leaderboardUi = {
+  tab: 'pvp',
+  rows: [],
+  skill: '',
+  metric: 'xp',
+};
+
+async function fetchWorldLeaderboardRows(tab, skill = leaderboardUi.skill, metric = leaderboardUi.metric) {
+  if(tab === 'skills') {
+    const skillParam = skill ? `&skill=${encodeURIComponent(skill)}` : '';
+    const res = await apiFetch(`/api/v1/leaderboards/skills?limit=50&offset=0&metric=${encodeURIComponent(metric)}${skillParam}`);
+    const data = await res.json().catch(() => []);
+    return { ok: res.ok, data };
+  }
+  if(tab === 'quests') {
+    const res = await apiFetch('/api/v1/leaderboards/quests?limit=50&offset=0');
+    const data = await res.json().catch(() => []);
+    return { ok: res.ok, data };
+  }
+  const res = await apiFetch('/api/v1/leaderboards/pvp?limit=50&offset=0');
+  const data = await res.json().catch(() => []);
+  return { ok: res.ok, data };
+}
+
+function renderWorldLeaderboardTable(tab, rows) {
+  if(!Array.isArray(rows) || rows.length === 0) {
+    return '<div style=\"color:#8896aa;font-size:11px\">No entries yet.</div>';
+  }
+  if(tab === 'skills') {
+    return `<table style=\"width:100%;border-collapse:collapse;font-size:11px\">
+      <thead><tr><th style=\"text-align:left;border-bottom:1px solid #3a5272;padding:6px\">#</th><th style=\"text-align:left;border-bottom:1px solid #3a5272;padding:6px\">Character</th><th style=\"text-align:left;border-bottom:1px solid #3a5272;padding:6px\">Skill</th><th style=\"text-align:left;border-bottom:1px solid #3a5272;padding:6px\">Level</th><th style=\"text-align:left;border-bottom:1px solid #3a5272;padding:6px\">XP</th></tr></thead>
+      <tbody>${rows.map((row) => `<tr><td style=\"padding:6px;border-bottom:1px solid #2d3f59\">${row.rank}</td><td style=\"padding:6px;border-bottom:1px solid #2d3f59\">${row.character_name}</td><td style=\"padding:6px;border-bottom:1px solid #2d3f59\">${row.skill || 'overall'}</td><td style=\"padding:6px;border-bottom:1px solid #2d3f59\">${row.level}</td><td style=\"padding:6px;border-bottom:1px solid #2d3f59\">${row.xp}</td></tr>`).join('')}</tbody>
+    </table>`;
+  }
+  if(tab === 'quests') {
+    return `<table style=\"width:100%;border-collapse:collapse;font-size:11px\">
+      <thead><tr><th style=\"text-align:left;border-bottom:1px solid #3a5272;padding:6px\">#</th><th style=\"text-align:left;border-bottom:1px solid #3a5272;padding:6px\">Character</th><th style=\"text-align:left;border-bottom:1px solid #3a5272;padding:6px\">Completed</th><th style=\"text-align:left;border-bottom:1px solid #3a5272;padding:6px\">Quest Pts</th></tr></thead>
+      <tbody>${rows.map((row) => `<tr><td style=\"padding:6px;border-bottom:1px solid #2d3f59\">${row.rank}</td><td style=\"padding:6px;border-bottom:1px solid #2d3f59\">${row.character_name}</td><td style=\"padding:6px;border-bottom:1px solid #2d3f59\">${row.completed_count}</td><td style=\"padding:6px;border-bottom:1px solid #2d3f59\">${row.quest_points}</td></tr>`).join('')}</tbody>
+    </table>`;
+  }
+  return `<table style=\"width:100%;border-collapse:collapse;font-size:11px\">
+    <thead><tr><th style=\"text-align:left;border-bottom:1px solid #3a5272;padding:6px\">#</th><th style=\"text-align:left;border-bottom:1px solid #3a5272;padding:6px\">Character</th><th style=\"text-align:left;border-bottom:1px solid #3a5272;padding:6px\">Class</th><th style=\"text-align:left;border-bottom:1px solid #3a5272;padding:6px\">ELO</th><th style=\"text-align:left;border-bottom:1px solid #3a5272;padding:6px\">W-L</th><th style=\"text-align:left;border-bottom:1px solid #3a5272;padding:6px\">KD</th></tr></thead>
+    <tbody>${rows.map((row) => `<tr><td style=\"padding:6px;border-bottom:1px solid #2d3f59\">${row.rank}</td><td style=\"padding:6px;border-bottom:1px solid #2d3f59\">${row.character_name}</td><td style=\"padding:6px;border-bottom:1px solid #2d3f59\">${row.combat_class}</td><td style=\"padding:6px;border-bottom:1px solid #2d3f59\">${row.elo}</td><td style=\"padding:6px;border-bottom:1px solid #2d3f59\">${row.wins}-${row.losses}</td><td style=\"padding:6px;border-bottom:1px solid #2d3f59\">${row.kd}</td></tr>`).join('')}</tbody>
+  </table>`;
+}
+
+window.openWorldHighscores = async function(tab = leaderboardUi.tab) {
+  leaderboardUi.tab = tab || 'pvp';
+  const metricInput = document.getElementById('world-highscore-metric');
+  const skillInput = document.getElementById('world-highscore-skill');
+  if(metricInput) leaderboardUi.metric = metricInput.value === 'level' ? 'level' : 'xp';
+  if(skillInput) leaderboardUi.skill = (skillInput.value || '').trim();
+
+  const response = await fetchWorldLeaderboardRows(leaderboardUi.tab, leaderboardUi.skill, leaderboardUi.metric);
+  if(!response.ok) {
+    showFloatingText(response.data?.error || 'Highscores unavailable', '#cc3333');
+    return;
+  }
+  leaderboardUi.rows = response.data || [];
+
+  openOverlayHtml(`
+    <div style=\"text-align:left;max-height:390px;overflow:auto;min-width:720px\">
+      <div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:8px\">
+        <div style=\"color:#d4e1ff;font-size:16px\">🏆 Highscores</div>
+        <div style=\"color:#6f809a;font-size:10px\">Landing and in-world boards are unified.</div>
+      </div>
+      <div style=\"display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px\">
+        <button onclick=\"window.openWorldHighscores('pvp')\" style=\"padding:5px 8px;background:${leaderboardUi.tab === 'pvp' ? '#2a4f8a' : '#1a2b42'};border:1px solid #4f7cc5;color:#fff;font-size:10px;font-family:monospace;cursor:pointer\">PvP ELO</button>
+        <button onclick=\"window.openWorldHighscores('skills')\" style=\"padding:5px 8px;background:${leaderboardUi.tab === 'skills' ? '#2a4f8a' : '#1a2b42'};border:1px solid #4f7cc5;color:#fff;font-size:10px;font-family:monospace;cursor:pointer\">Skills</button>
+        <button onclick=\"window.openWorldHighscores('quests')\" style=\"padding:5px 8px;background:${leaderboardUi.tab === 'quests' ? '#2a4f8a' : '#1a2b42'};border:1px solid #4f7cc5;color:#fff;font-size:10px;font-family:monospace;cursor:pointer\">Quest Completion</button>
+      </div>
+      ${leaderboardUi.tab === 'skills' ? `
+        <div style=\"display:grid;grid-template-columns:1fr 160px auto;gap:6px;align-items:center;margin-bottom:8px\">
+          <input id=\"world-highscore-skill\" value=\"${leaderboardUi.skill || ''}\" placeholder=\"skill (optional)\" style=\"padding:5px;background:#121723;border:1px solid #33495d;color:#c1d2e7;font-family:monospace;font-size:11px\" />
+          <select id=\"world-highscore-metric\" style=\"padding:5px;background:#121723;border:1px solid #33495d;color:#c1d2e7;font-family:monospace;font-size:11px\">
+            <option value=\"xp\" ${leaderboardUi.metric === 'xp' ? 'selected' : ''}>xp</option>
+            <option value=\"level\" ${leaderboardUi.metric === 'level' ? 'selected' : ''}>level</option>
+          </select>
+          <button onclick=\"window.openWorldHighscores('skills')\" style=\"padding:5px 8px;background:#335a66;border:1px solid #4d8d9f;color:#fff;font-size:10px;font-family:monospace;cursor:pointer\">Refresh</button>
+        </div>` : ''}
+      <div style=\"overflow:auto\">${renderWorldLeaderboardTable(leaderboardUi.tab, leaderboardUi.rows)}</div>
+      <div style=\"text-align:center;color:#666;font-size:11px;margin-top:8px\">Press Q or H to close</div>
+    </div>
+  `);
+};
+
+window.openCharacterPanel = async function() {
+  if(!player.session_token) {
+    registerForArena();
+    return;
+  }
+  const res = await apiFetch('/api/v1/character/me');
+  const data = await res.json().catch(() => ({}));
+  if(!res.ok) {
+    showFloatingText(data.error || 'Character panel unavailable', '#cc3333');
+    return;
+  }
+
+  const chars = Array.isArray(data.characters) ? data.characters : [];
+  player.actor_type = data.actor_type || data.account?.account_type || player.actor_type;
+  player.account_id = data.account?.account_id || player.account_id;
+  player.wallet_address = data.account?.wallet_address || player.wallet_address;
+  const selectedId = data.selected_character?.character_id || player.agent_id;
+
+  openOverlayHtml(`
+    <div style=\"text-align:left;max-height:390px;overflow:auto;min-width:700px\">
+      <div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:8px\">
+        <div style=\"color:#d4e1ff;font-size:16px\">🧬 Characters</div>
+        <div style=\"color:#8a99ad;font-size:11px\">Slots ${chars.length}/3</div>
+      </div>
+      <div style=\"display:grid;grid-template-columns:1fr;gap:6px;margin-bottom:8px\">
+        ${chars.map((ch) => `
+          <div style=\"border:1px solid ${ch.character_id === selectedId ? '#5f87c8' : '#33495d'};padding:7px;background:rgba(12,14,20,.84);display:flex;justify-content:space-between;gap:8px;align-items:center\">
+            <div>
+              <div style=\"font-size:12px;color:#d8e4ff\">${ch.name}</div>
+              <div style=\"font-size:10px;color:#8798af\">${ch.combat_class} · ${ch.mode}</div>
+            </div>
+            <button onclick=\"window.selectCharacterFromMenu('${ch.character_id}')\" style=\"padding:4px 8px;background:#2a4f8a;border:1px solid #4b79c8;color:#fff;font-size:10px;font-family:monospace;cursor:pointer\">${ch.character_id === selectedId ? 'Selected' : 'Select'}</button>
+          </div>
+        `).join('')}
+      </div>
+      <div style=\"display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center\">
+        <input id=\"menu-new-character-name\" placeholder=\"new character name\" style=\"padding:6px;background:#121723;border:1px solid #33495d;color:#c1d2e7;font-family:monospace;font-size:11px\" />
+        <button onclick=\"window.createCharacterFromMenu()\" ${chars.length >= 3 ? 'disabled' : ''} style=\"padding:6px 8px;background:#4f4b30;border:1px solid #8a7a44;color:#fff;font-size:10px;font-family:monospace;cursor:pointer\">Create + Select</button>
+      </div>
+      <div style=\"text-align:center;color:#666;font-size:11px;margin-top:8px\">Press Q or C to close</div>
+    </div>
+  `);
+};
+
+window.selectCharacterFromMenu = async function(characterId) {
+  if(!player.session_token || !characterId) return;
+  const res = await apiFetch('/api/v1/character/select', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ character_id: characterId }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if(!res.ok) {
+    showFloatingText(data.error || 'Character select failed', '#cc3333');
+    return;
+  }
+  player.session_token = data.session_token || player.session_token;
+  player.agent_id = data.character?.character_id || player.agent_id;
+  player.character_name = data.character?.name || player.character_name;
+  player.combat_class = data.character?.combat_class || player.combat_class;
+  player.mode = data.character?.mode || player.mode;
+  player.avatar_id = DEFAULT_PLAYER_SPRITES[player.combat_class] || player.avatar_id;
+  saveStoredAuth();
+
+  await apiFetch('/api/v1/arena/register/self', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ combat_class: player.combat_class, avatar_id: player.avatar_id }),
+  }).catch(() => null);
+
+  hydrateTutorialState(player.agent_id);
+  await loadCharacterState();
+  connectWorldSocket();
+  sendWorldUpdate(true);
+  await fetchResourceNodes();
+  await loadQuestJournal();
+  showFloatingText('Character switched', '#66d4ff');
+  window.openCharacterPanel();
+};
+
+window.createCharacterFromMenu = async function() {
+  if(!player.session_token) return;
+  const input = document.getElementById('menu-new-character-name');
+  const name = (input?.value || '').trim();
+  if(!name) {
+    showFloatingText('Name required', '#cc3333');
+    return;
+  }
+  const res = await apiFetch('/api/v1/character/create', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ name, combat_class: player.combat_class, select: true }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if(!res.ok) {
+    showFloatingText(data.error || 'Character create failed', '#cc3333');
+    return;
+  }
+  if(data.session_token) player.session_token = data.session_token;
+  if(data.character?.character_id) {
+    player.agent_id = data.character.character_id;
+    player.character_name = data.character.name || player.character_name;
+    player.combat_class = data.character.combat_class || player.combat_class;
+    player.mode = data.character.mode || player.mode;
+    player.avatar_id = DEFAULT_PLAYER_SPRITES[player.combat_class] || player.avatar_id;
+  }
+  saveStoredAuth();
+  await apiFetch('/api/v1/arena/register/self', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ combat_class: player.combat_class, avatar_id: player.avatar_id }),
+  }).catch(() => null);
+  hydrateTutorialState(player.agent_id);
+  await loadCharacterState();
+  connectWorldSocket();
+  sendWorldUpdate(true);
+  await fetchResourceNodes();
+  await loadQuestJournal();
+  showFloatingText('Character created', '#66d4ff');
+  window.openCharacterPanel();
+};
+
+async function logoutToLanding() {
+  if(player.session_token) {
+    await apiFetch('/api/v1/auth/logout', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ session_token: player.session_token }),
+    }).catch(() => null);
+  }
+  leaveWorldPresence();
+  clearStoredAuth();
+  window.location.href = '/';
+}
+
+function wirePersistentMenu() {
+  if(!persistentMenuEl) return;
+  document.getElementById('menu-profile').onclick = () => openProfilePanel();
+  document.getElementById('menu-highscores').onclick = () => window.openWorldHighscores('pvp');
+  document.getElementById('menu-characters').onclick = () => window.openCharacterPanel();
+  document.getElementById('menu-logout').onclick = () => logoutToLanding();
+  document.getElementById('menu-agent-console').onclick = () => { window.location.href = '/agent-console.html'; };
+}
+
+function requireSessionForEconomy() {
+  if(player.session_token) return true;
+  showFloatingText('Wallet session required. Press [F] to register.', '#cc3333');
+  registerForArena();
+  return false;
+}
+
+function openInventoryOverlay() {
+  if(!player.agent_id) {
+    registerForArena();
+    return;
+  }
+
+  const entries = Object.entries(player.inventory || {})
+    .filter(([, qty]) => Number(qty) > 0)
+    .sort((a, b) => Number(b[1]) - Number(a[1]));
+  const equipment = player.equipment || {};
+  const questIcon = getGeneratedAssetPath('ui_quest_icon');
+  const spellIcon = getGeneratedAssetPath('ui_spellbook_icon');
+  const tradeIcon = getGeneratedAssetPath('ui_trade_icon');
+
+  registrationOpen = true;
+  combatOverlay.style.display = 'block';
+  combatOverlay.innerHTML = `
+    <div style="text-align:left;max-height:390px;overflow:auto;min-width:560px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="color:#d4e1ff;font-size:16px">🎒 Inventory & Equipment</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          ${spellIcon ? `<img src="${spellIcon}" style="width:16px;height:16px;image-rendering:pixelated" />` : ''}
+          ${questIcon ? `<img src="${questIcon}" style="width:16px;height:16px;image-rendering:pixelated" />` : ''}
+          ${tradeIcon ? `<img src="${tradeIcon}" style="width:16px;height:16px;image-rendering:pixelated" />` : ''}
+        </div>
+      </div>
+      <div style="color:#8d95a6;font-size:11px;margin-bottom:8px">Agent: ${player.agent_id} · Class: ${player.combat_class}</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="border:1px solid #334;padding:8px;background:rgba(10,14,18,.82)">
+          <div style="color:#8fd2ff;font-size:12px;margin-bottom:6px">Equipment</div>
+          ${Object.entries(equipment).map(([slot, item]) =>
+            `<div style="display:flex;justify-content:space-between;font-size:11px;color:#b7c5dc;margin-bottom:2px">
+              <span>${slot}</span><span>${item ? renderItemInline(item, null) : '-'}</span>
+            </div>`
+          ).join('')}
+        </div>
+        <div style="border:1px solid #334;padding:8px;background:rgba(10,14,18,.82)">
+          <div style="color:#8fd2ff;font-size:12px;margin-bottom:6px">Inventory</div>
+          ${entries.slice(0, 24).map(([itemId, qty]) =>
+            `<div style="display:flex;justify-content:space-between;font-size:11px;color:#b7c5dc;margin-bottom:2px">
+              <span>${renderItemInline(itemId, null)}</span><span style="color:#d4a017">${qty}</span>
+            </div>`
+          ).join('') || '<div style="font-size:11px;color:#778">Inventory is empty</div>'}
+        </div>
+      </div>
+      <div style="color:#7e91a7;font-size:11px;margin-top:8px">Hotkeys: [J] quests · [N] bank · [T] trade · [G] grand exchange</div>
+      <div style="text-align:center;color:#666;font-size:11px;margin-top:8px">Press Q or I to close</div>
+    </div>`;
+}
+
+async function openQuestLogOverlay() {
+  if(!player.agent_id) {
+    registerForArena();
+    return;
+  }
+  await loadQuestJournal();
+  const quests = Array.isArray(questLog) ? [...questLog] : [];
+  quests.sort((a, b) => a.name.localeCompare(b.name));
+  const questIcon = getGeneratedAssetPath('ui_quest_icon');
+
+  registrationOpen = true;
+  combatOverlay.style.display = 'block';
+  combatOverlay.innerHTML = `
+    <div style="text-align:left;max-height:390px;overflow:auto;min-width:640px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="color:#d4e1ff;font-size:16px">📜 Quest Journal</div>
+        ${questIcon ? `<img src="${questIcon}" style="width:18px;height:18px;image-rendering:pixelated" />` : ''}
+      </div>
+      <div style="color:#8d95a6;font-size:11px;margin-bottom:8px">Canonical 2007 F2P quests: ${quests.length}</div>
+      <div style="display:grid;grid-template-columns:1fr;gap:6px">
+        ${quests.map((quest) => {
+          const objective = quest.objectives.find((entry) => !entry.complete) || quest.objectives[quest.active_objective_index] || quest.objectives[0];
+          const statusColor = quest.status === 'completed' ? '#d4a017' : quest.status === 'in_progress' ? '#66d4ff' : '#9aa7b8';
+          const startBtn = quest.status === 'not_started' ? `<button onclick="questAction('start','${quest.quest_id}')" style="padding:4px 8px;background:#2a4f8a;border:1px solid #4b79c8;color:#fff;font-size:10px;font-family:monospace;cursor:pointer">Start</button>` : '';
+          const advanceBtn = quest.status === 'in_progress' ? `<button onclick="questAction('advance','${quest.quest_id}')" style="padding:4px 8px;background:#335a66;border:1px solid #4d8d9f;color:#fff;font-size:10px;font-family:monospace;cursor:pointer">Advance</button>` : '';
+          const claimBtn = quest.status === 'completed' && !quest.reward_claimed ? `<button onclick="questAction('claim','${quest.quest_id}')" style="padding:4px 8px;background:#6c5a20;border:1px solid #a88a33;color:#fff;font-size:10px;font-family:monospace;cursor:pointer">Claim Reward</button>` : '';
+          return `<div style="border:1px solid #334;padding:8px;background:rgba(12,14,20,.84)">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+              <div>
+                <div style="color:#d8e4ff;font-size:12px">${quest.name}</div>
+                <div style="color:${statusColor};font-size:11px">${quest.status}${quest.reward_claimed ? ' · reward claimed' : ''}</div>
+                <div style="color:#8a99ad;font-size:10px;margin-top:3px">${objective ? objective.description : quest.description}</div>
+              </div>
+              <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">${startBtn}${advanceBtn}${claimBtn}</div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="text-align:center;color:#666;font-size:11px;margin-top:8px">Press Q or J to close</div>
+    </div>`;
+  markTutorialGoal('open_quest_log');
+}
+
+window.questAction = async function(action, questId) {
+  if(!requireSessionForEconomy()) return;
+  const routeByAction = {
+    start: '/api/v1/quests/start',
+    advance: '/api/v1/quests/advance',
+    claim: '/api/v1/quests/claim',
+  };
+  const endpoint = routeByAction[action];
+  if(!endpoint) return;
+
+  try {
+    const payload = action === 'advance' ? { quest_id: questId } : { quest_id: questId };
+    const res = await apiFetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if(!res.ok) {
+      showFloatingText(data.error || 'Quest action failed', '#cc3333');
+      return;
+    }
+    if(Array.isArray(data.quests)) {
+      questLog = data.quests;
+    }
+    if(data.skills) {
+      player.skills = data.skills;
+    }
+    if(data.inventory) {
+      player.inventory = data.inventory;
+    }
+    showFloatingText(`Quest ${action}`, '#66d4ff');
+    await openQuestLogOverlay();
+  } catch {
+    showFloatingText('Quest action failed', '#cc3333');
+  }
+};
+
+async function refreshBankState() {
+  if(!requireSessionForEconomy()) return false;
+  const res = await apiFetch('/api/v1/character/state');
+  if(!res.ok) return false;
+  const data = await res.json();
+  player.inventory = data.progress?.inventory || player.inventory;
+  player.bank = data.bank || player.bank || {};
+  if(Array.isArray(data.quests)) {
+    questLog = data.quests;
+  }
+  return true;
+}
+
+async function openBankOverlay() {
+  if(!await refreshBankState()) return;
+
+  const invEntries = Object.entries(player.inventory || {})
+    .filter(([, qty]) => Number(qty) > 0)
+    .sort((a, b) => Number(b[1]) - Number(a[1]));
+  const bankEntries = Object.entries(player.bank || {})
+    .filter(([, qty]) => Number(qty) > 0)
+    .sort((a, b) => Number(b[1]) - Number(a[1]));
+
+  registrationOpen = true;
+  combatOverlay.style.display = 'block';
+  combatOverlay.innerHTML = `
+    <div style="text-align:left;max-height:390px;overflow:auto;min-width:680px">
+      <div style="color:#d4e1ff;font-size:16px;margin-bottom:8px">🏦 Bank</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="border:1px solid #334;padding:8px;background:rgba(12,14,20,.84)">
+          <div style="color:#8fd2ff;font-size:12px;margin-bottom:6px">Inventory</div>
+          ${invEntries.slice(0, 30).map(([itemId, qty]) =>
+            `<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#b7c5dc;margin-bottom:2px">
+              <span>${renderItemInline(itemId, qty)}</span>
+              <button onclick="bankDepositItem('${escJs(itemId)}', 1)" style="padding:2px 6px;background:#234a3d;border:1px solid #3b826c;color:#fff;font-size:10px;font-family:monospace;cursor:pointer">Deposit 1</button>
+            </div>`
+          ).join('') || '<div style="font-size:11px;color:#778">No items to deposit</div>'}
+        </div>
+        <div style="border:1px solid #334;padding:8px;background:rgba(12,14,20,.84)">
+          <div style="color:#8fd2ff;font-size:12px;margin-bottom:6px">Bank</div>
+          ${bankEntries.slice(0, 30).map(([itemId, qty]) =>
+            `<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#b7c5dc;margin-bottom:2px">
+              <span>${renderItemInline(itemId, qty)}</span>
+              <button onclick="bankWithdrawItem('${escJs(itemId)}', 1)" style="padding:2px 6px;background:#3d2f5f;border:1px solid #6e57a5;color:#fff;font-size:10px;font-family:monospace;cursor:pointer">Withdraw 1</button>
+            </div>`
+          ).join('') || '<div style="font-size:11px;color:#778">Bank is empty</div>'}
+        </div>
+      </div>
+      <div style="text-align:center;color:#666;font-size:11px;margin-top:8px">Press Q or N to close</div>
+    </div>`;
+}
+
+window.bankDepositItem = async function(itemId, qty) {
+  if(!requireSessionForEconomy()) return;
+  try {
+    const res = await apiFetch('/api/v1/economy/bank/deposit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_id: itemId, qty }),
+    });
+    const data = await res.json();
+    if(!res.ok) {
+      showFloatingText(data.error || 'Deposit failed', '#cc3333');
+      return;
+    }
+    player.inventory = data.inventory || player.inventory;
+    player.bank = data.bank || player.bank;
+    await openBankOverlay();
+  } catch {
+    showFloatingText('Deposit failed', '#cc3333');
+  }
+};
+
+window.bankWithdrawItem = async function(itemId, qty) {
+  if(!requireSessionForEconomy()) return;
+  try {
+    const res = await apiFetch('/api/v1/economy/bank/withdraw', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_id: itemId, qty }),
+    });
+    const data = await res.json();
+    if(!res.ok) {
+      showFloatingText(data.error || 'Withdraw failed', '#cc3333');
+      return;
+    }
+    player.inventory = data.inventory || player.inventory;
+    player.bank = data.bank || player.bank;
+    await openBankOverlay();
+  } catch {
+    showFloatingText('Withdraw failed', '#cc3333');
+  }
+};
+
+async function refreshTradeState() {
+  if(!requireSessionForEconomy()) return false;
+  const res = await apiFetch('/api/v1/economy/trade/pending');
+  if(!res.ok) return false;
+  const data = await res.json();
+  economyUi.trades = {
+    incoming: data.incoming || [],
+    outgoing: data.outgoing || [],
+  };
+  return true;
+}
+
+async function openTradeOverlay() {
+  if(!await refreshTradeState()) return;
+  const nearby = [...worldAgents.values()]
+    .filter((agent) => isSameShard(agent.area_id, agent.instance_id))
+    .sort((a, b) => String(a.agent_id).localeCompare(String(b.agent_id)));
+  const tradeIcon = getGeneratedAssetPath('ui_trade_icon');
+
+  registrationOpen = true;
+  combatOverlay.style.display = 'block';
+  combatOverlay.innerHTML = `
+    <div style="text-align:left;max-height:390px;overflow:auto;min-width:700px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="color:#d4e1ff;font-size:16px">🤝 Player Trade</div>
+        ${tradeIcon ? `<img src="${tradeIcon}" style="width:18px;height:18px;image-rendering:pixelated" />` : ''}
+      </div>
+      <div style="border:1px solid #334;padding:8px;background:rgba(12,14,20,.84);margin-bottom:8px">
+        <div style="color:#8fd2ff;font-size:12px;margin-bottom:6px">Create Trade Request</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr 1fr;gap:6px;align-items:center">
+          <select id="trade-target" style="padding:5px;background:#121723;border:1px solid #33495d;color:#c1d2e7;font-family:monospace;font-size:11px">
+            ${nearby.map((agent) => `<option value="${agent.agent_id}">${agent.agent_id}</option>`).join('') || '<option value="">No nearby players</option>'}
+          </select>
+          <input id="trade-offer-item" value="logs" style="padding:5px;background:#121723;border:1px solid #33495d;color:#c1d2e7;font-family:monospace;font-size:11px" />
+          <input id="trade-offer-qty" type="number" min="1" value="1" style="padding:5px;background:#121723;border:1px solid #33495d;color:#c1d2e7;font-family:monospace;font-size:11px" />
+          <input id="trade-request-item" value="coins" style="padding:5px;background:#121723;border:1px solid #33495d;color:#c1d2e7;font-family:monospace;font-size:11px" />
+          <button onclick="submitTradeRequest()" style="padding:6px;background:#2a4f8a;border:1px solid #4b79c8;color:#fff;font-size:10px;font-family:monospace;cursor:pointer">Send</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="border:1px solid #334;padding:8px;background:rgba(12,14,20,.84)">
+          <div style="color:#8fd2ff;font-size:12px;margin-bottom:6px">Incoming</div>
+          ${economyUi.trades.incoming.map((offer) => `
+            <div style="border:1px solid #2c3a4f;padding:6px;margin-bottom:4px">
+              <div style="font-size:11px;color:#b7c5dc">${offer.from_character_id} → you (${offer.status})</div>
+              <div style="font-size:10px;color:#8a99ad;display:flex;flex-wrap:wrap;gap:6px">Offer: ${Object.entries(offer.offered_items || {}).map(([k,v]) => renderItemInline(k, v)).join('') || 'none'}</div>
+              <div style="font-size:10px;color:#8a99ad;display:flex;flex-wrap:wrap;gap:6px">Request: ${Object.entries(offer.requested_items || {}).map(([k,v]) => renderItemInline(k, v)).join('') || 'none'}</div>
+              <div style="display:flex;gap:4px;margin-top:4px">
+                ${offer.status === 'pending' ? `<button onclick="respondTrade('${offer.trade_id}','accept')" style="padding:3px 6px;background:#2c6c4a;border:1px solid #48a66d;color:#fff;font-size:10px;font-family:monospace;cursor:pointer">Accept</button>
+                <button onclick="respondTrade('${offer.trade_id}','decline')" style="padding:3px 6px;background:#7a2f2f;border:1px solid #b65151;color:#fff;font-size:10px;font-family:monospace;cursor:pointer">Decline</button>` : ''}
+                ${offer.status === 'accepted' ? `<button onclick="confirmTrade('${offer.trade_id}')" style="padding:3px 6px;background:#38508c;border:1px solid #5b7bcf;color:#fff;font-size:10px;font-family:monospace;cursor:pointer">Confirm</button>` : ''}
+              </div>
+            </div>
+          `).join('') || '<div style="font-size:11px;color:#778">No incoming trades</div>'}
+        </div>
+        <div style="border:1px solid #334;padding:8px;background:rgba(12,14,20,.84)">
+          <div style="color:#8fd2ff;font-size:12px;margin-bottom:6px">Outgoing</div>
+          ${economyUi.trades.outgoing.map((offer) => `
+            <div style="border:1px solid #2c3a4f;padding:6px;margin-bottom:4px">
+              <div style="font-size:11px;color:#b7c5dc">you → ${offer.to_character_id} (${offer.status})</div>
+              <div style="font-size:10px;color:#8a99ad;display:flex;flex-wrap:wrap;gap:6px">Offer: ${Object.entries(offer.offered_items || {}).map(([k,v]) => renderItemInline(k, v)).join('') || 'none'}</div>
+              <div style="font-size:10px;color:#8a99ad;display:flex;flex-wrap:wrap;gap:6px">Request: ${Object.entries(offer.requested_items || {}).map(([k,v]) => renderItemInline(k, v)).join('') || 'none'}</div>
+              ${offer.status === 'accepted' ? `<button onclick="confirmTrade('${offer.trade_id}')" style="margin-top:4px;padding:3px 6px;background:#38508c;border:1px solid #5b7bcf;color:#fff;font-size:10px;font-family:monospace;cursor:pointer">Confirm</button>` : ''}
+            </div>
+          `).join('') || '<div style="font-size:11px;color:#778">No outgoing trades</div>'}
+        </div>
+      </div>
+      <div style="text-align:center;color:#666;font-size:11px;margin-top:8px">Press Q or T to close</div>
+    </div>`;
+}
+
+window.submitTradeRequest = async function() {
+  if(!requireSessionForEconomy()) return;
+  const toCharacterId = document.getElementById('trade-target')?.value || '';
+  const offeredItem = (document.getElementById('trade-offer-item')?.value || '').trim();
+  const offeredQty = Math.max(1, Number(document.getElementById('trade-offer-qty')?.value || 1));
+  const requestedItem = (document.getElementById('trade-request-item')?.value || '').trim();
+  if(!toCharacterId || !offeredItem || !requestedItem) {
+    showFloatingText('Set target + trade items', '#cc3333');
+    return;
+  }
+
+  try {
+    const res = await apiFetch('/api/v1/economy/trade/request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to_character_id: toCharacterId,
+        offered_items: { [offeredItem]: offeredQty },
+        requested_items: { [requestedItem]: 1 },
+      }),
+    });
+    const data = await res.json();
+    if(!res.ok) {
+      showFloatingText(data.error || 'Trade request failed', '#cc3333');
+      return;
+    }
+    showFloatingText('Trade request sent', '#66d4ff');
+    await openTradeOverlay();
+  } catch {
+    showFloatingText('Trade request failed', '#cc3333');
+  }
+};
+
+window.respondTrade = async function(tradeId, decision) {
+  if(!requireSessionForEconomy()) return;
+  try {
+    const res = await apiFetch('/api/v1/economy/trade/respond', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trade_id: tradeId, decision }),
+    });
+    const data = await res.json();
+    if(!res.ok) {
+      showFloatingText(data.error || 'Trade response failed', '#cc3333');
+      return;
+    }
+    showFloatingText(`Trade ${data.status}`, '#66d4ff');
+    await openTradeOverlay();
+  } catch {
+    showFloatingText('Trade response failed', '#cc3333');
+  }
+};
+
+window.confirmTrade = async function(tradeId) {
+  if(!requireSessionForEconomy()) return;
+  try {
+    const res = await apiFetch('/api/v1/economy/trade/confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ trade_id: tradeId }),
+    });
+    const data = await res.json();
+    if(!res.ok) {
+      showFloatingText(data.error || 'Trade confirm failed', '#cc3333');
+      return;
+    }
+    await loadCharacterState();
+    showFloatingText('Trade completed', '#66d4ff');
+    await openTradeOverlay();
+  } catch {
+    showFloatingText('Trade confirm failed', '#cc3333');
+  }
+};
+
+async function refreshGeState(itemId = economyUi.ge_item) {
+  if(!requireSessionForEconomy()) return false;
+  economyUi.ge_item = itemId || economyUi.ge_item || DEFAULT_GE_ITEM;
+  const [bookRes, myRes] = await Promise.all([
+    apiFetch(`/api/v1/economy/ge/book/${encodeURIComponent(economyUi.ge_item)}`),
+    apiFetch('/api/v1/economy/ge/my'),
+  ]);
+  if(bookRes.ok) {
+    const book = await bookRes.json();
+    economyUi.ge_book = { buys: book.buys || [], sells: book.sells || [] };
+  }
+  if(myRes.ok) {
+    const mine = await myRes.json();
+    economyUi.ge_orders = mine.orders || [];
+  }
+  return true;
+}
+
+async function openGrandExchangeOverlay() {
+  if(!await refreshGeState(economyUi.ge_item || DEFAULT_GE_ITEM)) return;
+  registrationOpen = true;
+  combatOverlay.style.display = 'block';
+  combatOverlay.innerHTML = `
+    <div style="text-align:left;max-height:390px;overflow:auto;min-width:760px">
+      <div style="color:#d4e1ff;font-size:16px;margin-bottom:8px">💰 Grand Exchange</div>
+      <div style="border:1px solid #334;padding:8px;background:rgba(12,14,20,.84);margin-bottom:8px">
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr;gap:6px;align-items:center">
+          <input id="ge-item" value="${economyUi.ge_item}" style="padding:5px;background:#121723;border:1px solid #33495d;color:#c1d2e7;font-family:monospace;font-size:11px" />
+          <select id="ge-side" style="padding:5px;background:#121723;border:1px solid #33495d;color:#c1d2e7;font-family:monospace;font-size:11px">
+            <option value="buy">buy</option>
+            <option value="sell">sell</option>
+          </select>
+          <input id="ge-qty" type="number" min="1" value="1" style="padding:5px;background:#121723;border:1px solid #33495d;color:#c1d2e7;font-family:monospace;font-size:11px" />
+          <input id="ge-price" type="number" min="1" value="100" style="padding:5px;background:#121723;border:1px solid #33495d;color:#c1d2e7;font-family:monospace;font-size:11px" />
+          <button onclick="createGeOrder()" style="padding:6px;background:#2a4f8a;border:1px solid #4b79c8;color:#fff;font-size:10px;font-family:monospace;cursor:pointer">Create</button>
+        </div>
+        <div style="margin-top:6px">
+          <button onclick="loadGeBook()" style="padding:5px 8px;background:#30445c;border:1px solid #466587;color:#fff;font-size:10px;font-family:monospace;cursor:pointer">Refresh Book</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div style="border:1px solid #334;padding:8px;background:rgba(12,14,20,.84)">
+          <div style="color:#8fd2ff;font-size:12px;margin-bottom:6px">Buy Orders</div>
+          ${economyUi.ge_book.buys.slice(0, 20).map((order) =>
+            `<div style="font-size:10px;color:#b7c5dc;margin-bottom:2px;display:flex;justify-content:space-between">${renderItemInline(order.item_id, order.qty - order.filled_qty)} <span>${order.price_each} gp</span></div>`
+          ).join('') || '<div style="font-size:11px;color:#778">No buys</div>'}
+        </div>
+        <div style="border:1px solid #334;padding:8px;background:rgba(12,14,20,.84)">
+          <div style="color:#8fd2ff;font-size:12px;margin-bottom:6px">Sell Orders</div>
+          ${economyUi.ge_book.sells.slice(0, 20).map((order) =>
+            `<div style="font-size:10px;color:#b7c5dc;margin-bottom:2px;display:flex;justify-content:space-between">${renderItemInline(order.item_id, order.qty - order.filled_qty)} <span>${order.price_each} gp</span></div>`
+          ).join('') || '<div style="font-size:11px;color:#778">No sells</div>'}
+        </div>
+        <div style="border:1px solid #334;padding:8px;background:rgba(12,14,20,.84)">
+          <div style="color:#8fd2ff;font-size:12px;margin-bottom:6px">My Orders</div>
+          ${economyUi.ge_orders.slice(0, 20).map((order) => `
+            <div style="border:1px solid #2c3a4f;padding:5px;margin-bottom:4px">
+              <div style="font-size:10px;color:#b7c5dc;display:flex;justify-content:space-between">${renderItemInline(order.item_id, null)} <span>${order.side} @ ${order.price_each} gp</span></div>
+              <div style="font-size:10px;color:#8a99ad">${order.filled_qty}/${order.qty} · ${order.status}</div>
+              ${(order.status === 'open' || order.status === 'partially_filled')
+                ? `<button onclick="cancelGeOrder('${order.order_id}')" style="margin-top:3px;padding:3px 6px;background:#7a2f2f;border:1px solid #b65151;color:#fff;font-size:10px;font-family:monospace;cursor:pointer">Cancel</button>`
+                : ''}
+            </div>
+          `).join('') || '<div style="font-size:11px;color:#778">No orders</div>'}
+        </div>
+      </div>
+      <div style="text-align:center;color:#666;font-size:11px;margin-top:8px">Press Q or G to close</div>
+    </div>`;
+}
+
+window.loadGeBook = async function() {
+  const item = (document.getElementById('ge-item')?.value || '').trim();
+  if(item) economyUi.ge_item = item;
+  await openGrandExchangeOverlay();
+};
+
+window.createGeOrder = async function() {
+  if(!requireSessionForEconomy()) return;
+  const item = (document.getElementById('ge-item')?.value || '').trim();
+  const side = document.getElementById('ge-side')?.value === 'sell' ? 'sell' : 'buy';
+  const qty = Math.max(1, Number(document.getElementById('ge-qty')?.value || 1));
+  const price = Math.max(1, Number(document.getElementById('ge-price')?.value || 1));
+  if(!item) {
+    showFloatingText('Item id required', '#cc3333');
+    return;
+  }
+
+  try {
+    const res = await apiFetch('/api/v1/economy/ge/order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ item_id: item, side, qty, price_each: price }),
+    });
+    const data = await res.json();
+    if(!res.ok) {
+      showFloatingText(data.error || 'GE order failed', '#cc3333');
+      return;
+    }
+    await loadCharacterState();
+    economyUi.ge_item = item;
+    showFloatingText('GE order created', '#66d4ff');
+    await openGrandExchangeOverlay();
+  } catch {
+    showFloatingText('GE order failed', '#cc3333');
+  }
+};
+
+window.cancelGeOrder = async function(orderId) {
+  if(!requireSessionForEconomy()) return;
+  try {
+    const res = await apiFetch(`/api/v1/economy/ge/order/${encodeURIComponent(orderId)}`, {
+      method: 'DELETE',
+    });
+    const data = await res.json();
+    if(!res.ok) {
+      showFloatingText(data.error || 'Cancel failed', '#cc3333');
+      return;
+    }
+    await loadCharacterState();
+    showFloatingText('Order cancelled', '#66d4ff');
+    await openGrandExchangeOverlay();
+  } catch {
+    showFloatingText('Cancel failed', '#cc3333');
   }
 };
 
@@ -1283,7 +3018,7 @@ async function startArenaFightFromMatch(fightId) {
   if(!fightId || !player.agent_id) return;
   try {
     if(skillActionNodeId) {
-      fetch('/api/v1/world/interact', {
+      apiFetch('/api/v1/world/interact', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({agent_id:player.agent_id,node_id:skillActionNodeId,action:'stop'})
@@ -1291,7 +3026,7 @@ async function startArenaFightFromMatch(fightId) {
       skillActionNodeId = null;
     }
 
-    const res = await fetch(API + '/fight/' + fightId);
+    const res = await apiFetch(API + '/fight/' + fightId);
     if(!res.ok) return;
     const fight = await res.json();
 
@@ -1323,6 +3058,8 @@ async function startArenaFightFromMatch(fightId) {
       },
       playerSlot: isP1 ? 'p1' : 'p2',
       tick: fight.tick || 0,
+      tickWindowMs: fight.tick_window_ms || 600,
+      nextTickAt: fight.next_tick_at || (Date.now() + (fight.tick_window_ms || 600)),
       status: 'active',
       round: fight.round || 1,
       roundsWon: fight.rounds_won || { p1: 0, p2: 0 },
@@ -1382,7 +3119,7 @@ async function runArenaLoop() {
   const pFood = player.hp < 40 ? FOODS[Math.floor(Math.random()*FOODS.length)] : 'none';
 
   try {
-    const actionRes = await fetch(API+'/action', {method:'POST',headers:{'Content-Type':'application/json'},
+    const actionRes = await apiFetch(API+'/action', {method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({agent_id:player.agent_id,fight_id:arenaFight.fight_id,
         action:pAttack,special:pSpecial||'none',food:pFood,prayer:pPrayer})});
     const actionData = await actionRes.json();
@@ -1398,7 +3135,7 @@ async function runArenaLoop() {
       const botPrayer = botPrayers[Math.floor(Math.random()*botPrayers.length)];
       const botFood = arenaFight.opponent.hp < 40 ? FOODS[Math.floor(Math.random()*FOODS.length)] : 'none';
 
-      const res = await fetch(API+'/action', {method:'POST',headers:{'Content-Type':'application/json'},
+      const res = await apiFetch(API+'/action', {method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({agent_id:arenaFight.opponent.id,fight_id:arenaFight.fight_id,
           action:botAttack,special:botSpecial||'none',food:botFood,prayer:botPrayer})});
       const data = await res.json();
@@ -1417,7 +3154,7 @@ async function runArenaLoop() {
       }
     } else {
       // For real PvP, state arrives via websocket tick_update. Poll fallback:
-      const stateRes = await fetch(API + '/fight/' + arenaFight.fight_id);
+      const stateRes = await apiFetch(API + '/fight/' + arenaFight.fight_id);
       if(stateRes.ok) {
         const state = await stateRes.json();
         applyFightUpdate(state, state.last_result || null, false);
@@ -1448,6 +3185,8 @@ function applyFightUpdate(f, tickResult, allowRoundTransition = true) {
   arenaFight.opponent.hp = oppState.hp;
   arenaFight.opponent.prayer = oppState.prayer;
   arenaFight.tick = f.tick;
+  arenaFight.tickWindowMs = f.tick_window_ms || arenaFight.tickWindowMs || 600;
+  arenaFight.nextTickAt = f.next_tick_at || arenaFight.nextTickAt || (Date.now() + (arenaFight.tickWindowMs || 600));
   arenaFight.round = f.round;
   arenaFight.roundsWon = f.rounds_won;
   arenaFight.lastNarrative = tickResult?.narrative || '';
@@ -1505,7 +3244,7 @@ function applyFightUpdate(f, tickResult, allowRoundTransition = true) {
 
   if(f.status === 'round_over' && allowRoundTransition) {
     combatLog.push(`--- Round ${f.round + 1} ---`);
-    fetch(API+'/next-round', {method:'POST',headers:{'Content-Type':'application/json'},
+    apiFetch(API+'/next-round', {method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({fight_id:arenaFight.fight_id})}).catch(()=>{});
   }
 }
@@ -1544,17 +3283,17 @@ async function toggleResourceInteraction(node) {
   if(!player.agent_id) return;
   try {
     if(skillActionNodeId === node.node_id) {
-      await fetch('/api/v1/world/interact', {
+      await apiFetch('/api/v1/world/interact', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({agent_id:player.agent_id,node_id:node.node_id,action:'stop'})
       });
       skillActionNodeId = null;
-      showFloatingText('Stopped gathering', '#999');
+      showFloatingText('Stopped training', '#999');
       return;
     }
 
-    const res = await fetch('/api/v1/world/interact', {
+    const res = await apiFetch('/api/v1/world/interact', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({agent_id:player.agent_id,node_id:node.node_id,action:'start'})
@@ -1562,9 +3301,10 @@ async function toggleResourceInteraction(node) {
     const data = await res.json();
     if(res.ok) {
       skillActionNodeId = node.node_id;
-      showFloatingText(`${node.skill}...`, '#66d4ff');
+      showFloatingText(`${formatSkillName(node.skill)}...`, '#66d4ff');
+      markTutorialGoal('interact_node');
     } else {
-      showFloatingText(data.error || 'Cannot gather', '#cc3333');
+      showFloatingText(data.error || 'Cannot train here', '#cc3333');
     }
   } catch {
     showFloatingText('Interaction failed', '#cc3333');
@@ -1591,7 +3331,7 @@ function getNearbyPortalObject(maxDist = 110) {
 async function useWorldPortal(portalObj) {
   if(!player.agent_id || !portalObj?.portal_id) return;
   try {
-    const res = await fetch('/api/v1/world/portal/use', {
+    const res = await apiFetch('/api/v1/world/portal/use', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
@@ -1615,9 +3355,11 @@ async function useWorldPortal(portalObj) {
     if(data.world) {
       setWorldStateFromServer(data.world);
       await fetchResourceNodes();
+      await loadQuestJournal();
       sendWorldUpdate(true);
       showZoneLabel(getZone(player.x)?.name || 'New Area');
       showFloatingText(`Entered ${data.area?.name || 'new area'}`, '#66d4ff');
+      markTutorialGoal('use_portal');
     }
   } catch {
     showFloatingText('Portal failed', '#cc3333');
@@ -1632,16 +3374,33 @@ function isNearDuelPortal() {
 // ─── UPDATE ───
 function update() {
   tick++;
-
-  if(keys['q'] && registrationOpen) {
-    keys['q'] = false;
-    combatOverlay.style.display = 'none';
-    registrationOpen = false;
+  if((tick % 10) === 0) {
+    updateTutorialTracker();
   }
-  if(keys['b'] && registrationOpen) {
-    keys['b'] = false;
-    combatOverlay.style.display = 'none';
-    registrationOpen = false;
+
+  if(registrationOpen) {
+    const closeKeys = ['q', 'b', 'm', 'k', 'i', 'j', 'n', 't', 'g'];
+    for(const key of closeKeys) {
+      if(keys[key]) {
+        keys[key] = false;
+        combatOverlay.style.display = 'none';
+        registrationOpen = false;
+      }
+    }
+  }
+
+  if(dialogueState && dialogueState.mode === 'tree') {
+    const digitChoices = ['1','2','3','4'];
+    for(const digit of digitChoices) {
+      if(keys[digit]) {
+        keys[digit] = false;
+        const idx = Number(digit) - 1;
+        const choice = dialogueState.node?.choices?.[idx];
+        if(choice) {
+          window.chooseDialogueChoice(choice.choice_id);
+        }
+      }
+    }
   }
 
   // Player movement
@@ -1682,7 +3441,7 @@ function update() {
       if(dialogueState) closeDialogue();
       if(registrationOpen) { combatOverlay.style.display = 'none'; registrationOpen = false; }
       if(skillActionNodeId && player.agent_id) {
-        fetch('/api/v1/world/interact', {
+        apiFetch('/api/v1/world/interact', {
           method:'POST',
           headers:{'Content-Type':'application/json'},
           body:JSON.stringify({agent_id:player.agent_id,node_id:skillActionNodeId,action:'stop'})
@@ -1698,6 +3457,101 @@ function update() {
       } else {
         openSpellbookOverlay();
       }
+    }
+    if(keys['k']) {
+      keys['k'] = false;
+      if(registrationOpen) {
+        combatOverlay.style.display = 'none';
+        registrationOpen = false;
+      } else {
+        openSkillsOverlay();
+      }
+    }
+    if(keys['m']) {
+      keys['m'] = false;
+      if(registrationOpen) {
+        combatOverlay.style.display = 'none';
+        registrationOpen = false;
+      } else {
+        openAtlasOverlay();
+      }
+    }
+    if(keys['i']) {
+      keys['i'] = false;
+      if(registrationOpen) {
+        combatOverlay.style.display = 'none';
+        registrationOpen = false;
+      } else {
+        openInventoryOverlay();
+      }
+    }
+    if(keys['j']) {
+      keys['j'] = false;
+      if(registrationOpen) {
+        combatOverlay.style.display = 'none';
+        registrationOpen = false;
+      } else {
+        openQuestLogOverlay();
+      }
+    }
+    if(keys['n']) {
+      keys['n'] = false;
+      if(registrationOpen) {
+        combatOverlay.style.display = 'none';
+        registrationOpen = false;
+      } else {
+        openBankOverlay();
+      }
+    }
+    if(keys['t']) {
+      keys['t'] = false;
+      if(registrationOpen) {
+        combatOverlay.style.display = 'none';
+        registrationOpen = false;
+      } else {
+        openTradeOverlay();
+      }
+    }
+    if(keys['g']) {
+      keys['g'] = false;
+      if(registrationOpen) {
+        combatOverlay.style.display = 'none';
+        registrationOpen = false;
+      } else {
+        openGrandExchangeOverlay();
+      }
+    }
+    if(keys['p']) {
+      keys['p'] = false;
+      if(registrationOpen) {
+        closeCombatOverlay();
+      } else {
+        openProfilePanel();
+      }
+    }
+    if(keys['h']) {
+      keys['h'] = false;
+      if(registrationOpen) {
+        closeCombatOverlay();
+      } else {
+        window.openWorldHighscores('pvp');
+      }
+    }
+    if(keys['c']) {
+      keys['c'] = false;
+      if(registrationOpen) {
+        closeCombatOverlay();
+      } else {
+        window.openCharacterPanel();
+      }
+    }
+    if(keys['l']) {
+      keys['l'] = false;
+      logoutToLanding();
+    }
+    if(keys['o']) {
+      keys['o'] = false;
+      window.location.href = '/agent-console.html';
     }
     if(keys['f']) {
       keys['f'] = false;
@@ -1771,6 +3625,18 @@ function render() {
   grad.addColorStop(1, zone.name === 'Wilderness' || zone.name === 'Wilderness Border' ? '#1a0505' : '#0a0a15');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
+
+  const areaId = player.area_id || DEFAULT_AREA_ID;
+  const bgAssetId = backgroundAssetByArea[areaId];
+  if(bgAssetId && generatedAssets.has(bgAssetId)) {
+    const bg = generatedAssets.get(bgAssetId);
+    const parallaxOffset = -(cam.x * 0.08) % W;
+    ctx.globalAlpha = 0.42;
+    for(let i = -1; i <= 1; i++) {
+      ctx.drawImage(bg, parallaxOffset + i * W, 0, W, H);
+    }
+    ctx.globalAlpha = 1;
+  }
 
   // Stars
   ctx.fillStyle = '#fff';
@@ -1850,13 +3716,8 @@ function render() {
     const ny = GROUND_Y - cam.y - 10;
     const depleted = node.depleted_until && node.depleted_until > Date.now();
     const isActive = skillActionNodeId === node.node_id;
-    const skillColor = node.skill === 'mining'
-      ? '#b0b0b0'
-      : node.skill === 'fishing'
-      ? '#44aaff'
-      : node.skill === 'runecrafting'
-      ? '#7f8dff'
-      : '#66aa44';
+    const visual = getSkillVisual(node.skill);
+    const skillColor = visual.color;
 
     ctx.fillStyle = depleted ? '#444' : skillColor;
     ctx.beginPath();
@@ -1865,6 +3726,12 @@ function render() {
     ctx.strokeStyle = isActive ? '#d4a017' : '#222';
     ctx.lineWidth = isActive ? 2 : 1;
     ctx.stroke();
+    if(!depleted) {
+      ctx.fillStyle = 'rgba(10,10,15,0.85)';
+      ctx.font = '8px Courier New';
+      ctx.textAlign = 'center';
+      ctx.fillText(visual.icon, nx, ny + 3);
+    }
 
     const near = Math.abs(node.x - player.x) < 85 && !player.inFight;
     if(near) {
@@ -1872,10 +3739,10 @@ function render() {
       ctx.font = '9px Courier New';
       ctx.textAlign = 'center';
       const suffix = depleted ? ' (depleted)' : '';
-      ctx.fillText(`${node.skill} ${node.level_required}+${suffix}`, nx, ny - 16);
+      ctx.fillText(`${formatSkillName(node.skill)} ${node.level_required}+${suffix}`, nx, ny - 16);
       if(!depleted) {
         ctx.fillStyle = '#999';
-        ctx.fillText('[E] Gather', nx, ny - 27);
+        ctx.fillText('[E] Train', nx, ny - 27);
       }
     }
   });
@@ -1908,7 +3775,7 @@ function render() {
       skin: '#c8a882',
       legs: '#2a2a3a',
       arms: agent.combat_class === 'melee' ? '#993333' : agent.combat_class === 'ranged' ? '#2f8b3f' : '#335999',
-    }, 24, 40, equipment);
+    }, 24, 40, equipment, agent.avatar_id || DEFAULT_PLAYER_SPRITES[agent.combat_class] || `player_${agent.combat_class}`);
 
     drawText(agent.agent_id, agent.x, agent.y - 56, '#66d4ff', 9);
   });
@@ -1921,7 +3788,7 @@ function render() {
       body: op.class==='melee'?'#aa3333':op.class==='ranged'?'#33aa33':'#3366aa',
       hat: op.class==='melee'?'#882222':op.class==='ranged'?'#228822':'#224488',
       skin:'#b89a72', legs:'#2a2a3a', arms: op.class==='melee'?'#993333':op.class==='ranged'?'#339933':'#335599'
-    }, 24, 40, opEquip);
+    }, 24, 40, opEquip, `player_${op.class}`);
 
     // Opponent HP bar
     const ohx = op.x - cam.x - 20;
@@ -1972,7 +3839,17 @@ function render() {
     legs: '#2a2a4a',
     arms: player.combat_class==='melee'?'#7a3333':player.combat_class==='ranged'?'#33773a':'#334477',
   };
-  drawCharacter(player.x, player.y, player.facing, player.walkTimer, pColors, 24, 40, player.equipment);
+  drawCharacter(
+    player.x,
+    player.y,
+    player.facing,
+    player.walkTimer,
+    pColors,
+    24,
+    40,
+    player.equipment,
+    player.avatar_id || DEFAULT_PLAYER_SPRITES[player.combat_class] || `player_${player.combat_class}`
+  );
 
   // Player name
   if(player.agent_id) {
@@ -2010,6 +3887,7 @@ function render() {
   renderHUD();
   renderMinimap();
   renderCombatLog();
+  renderQuestTracker();
 }
 
 function renderHUD() {
@@ -2051,6 +3929,11 @@ function renderHUD() {
   hpCtx.font = 'bold 10px Courier New';
   hpCtx.textAlign = 'center';
   hpCtx.fillText(`${player.prayer} / ${player.maxPrayer}`, 100, 66);
+
+  hpCtx.fillStyle = '#7e91a7';
+  hpCtx.font = '9px Courier New';
+  hpCtx.textAlign = 'left';
+  hpCtx.fillText('I Inv  J Quests  N Bank  T Trade  G GE', 10, 76);
 }
 
 function renderMinimap() {
@@ -2074,6 +3957,23 @@ function renderMinimap() {
   minimapCtx.textAlign = 'center';
   zones.forEach(z => {
     minimapCtx.fillText(z.name.split(' ')[0], (z.x + z.w/2) * scale, 12);
+  });
+
+  // Portals
+  worldObjects.forEach((obj) => {
+    const areaId = obj.area_id || DEFAULT_AREA_ID;
+    if(areaId !== (player.area_id || DEFAULT_AREA_ID)) return;
+    if(!obj.portal_id) return;
+    minimapCtx.fillStyle = obj.portal_kind === 'duel_queue' ? '#d4a017' : '#7fa1ff';
+    minimapCtx.fillRect((obj.x + obj.w / 2) * scale - 1, 28, 3, 6);
+  });
+
+  // Resource nodes
+  resourceNodes.forEach((node) => {
+    if(!isSameShard(node.area_id, node.instance_id)) return;
+    const visual = getSkillVisual(node.skill);
+    minimapCtx.fillStyle = visual.color;
+    minimapCtx.fillRect(node.x * scale - 1, 54, 2, 2);
   });
 
   // NPCs
@@ -2124,11 +4024,57 @@ function renderCombatLog() {
 
   // Round score
   if(arenaFight) {
+    const youScore = arenaFight.playerSlot === 'p1' ? arenaFight.roundsWon.p1 : arenaFight.roundsWon.p2;
+    const oppScore = arenaFight.playerSlot === 'p1' ? arenaFight.roundsWon.p2 : arenaFight.roundsWon.p1;
+    const tickCountdown = Math.max(0, (arenaFight.nextTickAt || 0) - Date.now());
     ctx.fillStyle = '#d4a017';
     ctx.font = 'bold 12px Courier New';
     ctx.textAlign = 'right';
-    ctx.fillText(`Round ${arenaFight.round} | You ${arenaFight.roundsWon.p1} - ${arenaFight.roundsWon.p2} Opponent`, 380, H - 183);
-    ctx.fillText(`Tick ${arenaFight.tick}`, 380, H - 168);
+    ctx.fillText(`Round ${arenaFight.round} | You ${youScore} - ${oppScore} Opponent`, 380, H - 183);
+    ctx.fillText(`Tick ${arenaFight.tick} • Next ${tickCountdown}ms`, 380, H - 168);
+  }
+}
+
+function renderQuestTracker() {
+  if(!Array.isArray(questLog) || questLog.length === 0) return;
+  const active = questLog.filter((quest) => quest.status === 'in_progress').slice(0, 3);
+  const turnIns = questLog.filter((quest) => quest.status === 'completed' && !quest.reward_claimed).slice(0, 2);
+  if(active.length === 0 && turnIns.length === 0) return;
+
+  const panelX = 20;
+  const panelY = 120;
+  const panelW = 340;
+  const lineH = 16;
+  const rows = 1 + active.length + turnIns.length;
+  const panelH = 18 + rows * lineH + 10;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.72)';
+  ctx.fillRect(panelX, panelY, panelW, panelH);
+  ctx.strokeStyle = '#44637d';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(panelX, panelY, panelW, panelH);
+
+  ctx.fillStyle = '#66d4ff';
+  ctx.font = 'bold 11px Courier New';
+  ctx.textAlign = 'left';
+  ctx.fillText('Quest Tracker', panelX + 10, panelY + 13);
+
+  let row = 0;
+  for(const quest of active) {
+    const objective = quest.objectives.find((entry) => !entry.complete) || quest.objectives[quest.active_objective_index] || quest.objectives[0];
+    const text = objective
+      ? `${quest.name}: ${objective.description} (${Math.min(objective.current, objective.target)}/${objective.target})`
+      : `${quest.name}: progressing`;
+    ctx.fillStyle = '#c7d4e8';
+    ctx.font = '10px Courier New';
+    ctx.fillText(text.slice(0, 52), panelX + 10, panelY + 30 + row * lineH);
+    row += 1;
+  }
+  for(const quest of turnIns) {
+    ctx.fillStyle = '#d4a017';
+    ctx.font = '10px Courier New';
+    ctx.fillText(`Turn in: ${quest.name} (${quest.turn_in_npc_id})`, panelX + 10, panelY + 30 + row * lineH);
+    row += 1;
   }
 }
 
@@ -2145,6 +4091,7 @@ window.render_game_to_text = function renderGameToText() {
     visibleAgents.push({
       id: agent.agent_id,
       class: agent.combat_class,
+      avatar_id: agent.avatar_id || null,
       x: agent.x,
       y: agent.y,
       zone: agent.zone,
@@ -2164,12 +4111,33 @@ window.render_game_to_text = function renderGameToText() {
     }
   });
 
+  const visiblePortals = [];
+  worldObjects.forEach((obj) => {
+    if(!obj.portal_id) return;
+    const areaId = obj.area_id || DEFAULT_AREA_ID;
+    if(areaId !== (player.area_id || DEFAULT_AREA_ID)) return;
+    if(Math.abs((obj.x + obj.w / 2) - player.x) > 1400) return;
+    visiblePortals.push({
+      portal_id: obj.portal_id,
+      label: obj.label || obj.portal_id,
+      kind: obj.portal_kind || 'travel',
+      x: Math.round(obj.x + obj.w / 2),
+    });
+  });
+
+  const skills = {};
+  SKILL_DISPLAY_ORDER.forEach((skill) => {
+    const state = player.skills?.[skill] || { level: 1, xp: 0 };
+    skills[skill] = { level: state.level, xp: state.xp };
+  });
+
   const payload = {
     coordinate_system: 'origin top-left, +x right, +y down',
     mode: player.inFight ? 'duel_arena' : 'open_world',
     player: {
       id: player.agent_id,
       class: player.combat_class,
+      avatar_id: player.avatar_id || null,
       x: Math.round(player.x),
       y: Math.round(player.y),
       hp: player.hp,
@@ -2196,6 +4164,14 @@ window.render_game_to_text = function renderGameToText() {
     } : null,
     open_world_agents: visibleAgents,
     resource_nodes: visibleNodes,
+    visible_portals: visiblePortals,
+    skills,
+    quests: (questLog || []).map((quest) => ({
+      quest_id: quest.quest_id,
+      status: quest.status,
+      reward_claimed: quest.reward_claimed,
+      active_objective_index: quest.active_objective_index,
+    })),
   };
 
   return JSON.stringify(payload);
@@ -2210,8 +4186,94 @@ window.advanceTime = (ms = 16) => {
   render();
 };
 
-fetchResourceNodes();
-gameLoop();
+async function bootstrapFromStoredSession() {
+  const stored = loadStoredAuth();
+  if(!stored?.session_token) return false;
+
+  player.session_token = stored.session_token;
+  player.wallet_address = stored.wallet_address || null;
+  player.account_id = stored.account_id || null;
+  player.agent_id = stored.character_id || null;
+  player.actor_type = stored.actor_type || 'human';
+  player.character_name = stored.character_name || null;
+  player.mode = stored.mode || 'f2p_2007';
+  if(stored.combat_class) {
+    player.combat_class = stored.combat_class;
+  }
+  if(typeof stored.avatar_id === 'string' && stored.avatar_id.length > 0) {
+    player.avatar_id = stored.avatar_id;
+  }
+
+  try {
+    const meRes = await apiFetch('/api/v1/character/me');
+    if(meRes.ok) {
+      const meData = await meRes.json();
+      if(meData?.selected_character?.combat_class) {
+        player.combat_class = meData.selected_character.combat_class;
+      }
+      if(meData?.selected_character?.character_id) {
+        player.agent_id = meData.selected_character.character_id;
+      }
+      if(meData?.selected_character?.name) {
+        player.character_name = meData.selected_character.name;
+      }
+      if(meData?.selected_character?.mode) {
+        player.mode = meData.selected_character.mode;
+      }
+      if(meData?.actor_type) {
+        player.actor_type = meData.actor_type;
+      }
+    }
+
+    await loadCharacterState();
+    if(!player.agent_id) {
+      clearStoredAuth();
+      return false;
+    }
+
+    const registerRes = await apiFetch('/api/v1/arena/register/self', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        combat_class: player.combat_class,
+        avatar_id: player.avatar_id || DEFAULT_PLAYER_SPRITES[player.combat_class] || `player_${player.combat_class}`,
+        prayer_book: 'normal',
+      }),
+    });
+    const registerData = await registerRes.json().catch(() => ({}));
+    if(!registerRes.ok || registerData.status !== 'registered') {
+      clearStoredAuth();
+      return false;
+    }
+
+    player.registered = true;
+    player.character_name = registerData.character?.name || player.character_name;
+    player.mode = registerData.character?.mode || player.mode;
+    player.actor_type = registerData.account_type || player.actor_type;
+    player.equipment = getEquipmentForClass(player.combat_class);
+    hydrateTutorialState(player.agent_id);
+    updateTutorialTracker();
+    saveStoredAuth();
+    connectWorldSocket();
+    sendWorldUpdate(true);
+    await fetchResourceNodes();
+    await loadQuestJournal();
+    return true;
+  } catch {
+    clearStoredAuth();
+    return false;
+  }
+}
+
+Promise.resolve()
+  .then(() => wirePersistentMenu())
+  .then(() => loadGeneratedAssets())
+  .then(() => bootstrapFromStoredSession())
+  .finally(() => {
+    fetchResourceNodes();
+    updateTutorialTracker();
+    gameLoop();
+  });
 
 // ─── PREVENT SCROLL ───
 addEventListener('keydown', e => { if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Tab'].includes(e.key)) e.preventDefault(); });

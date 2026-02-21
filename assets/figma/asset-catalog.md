@@ -1,0 +1,147 @@
+# RuneScape Arena Asset Catalog
+
+- Source: `public/assets/generated/manifest.json`
+- Total assets: 127
+
+## background
+
+- bg_runecraft_nexus: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/bg_runecraft_nexus.png
+- bg_shadow_dungeon: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/bg_shadow_dungeon.png
+- bg_surface_main: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/bg_surface_main.png
+- bg_wilderness_depths: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/bg_wilderness_depths.png
+
+## item
+
+- item_abyssal_contract: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_abyssal_contract.png
+- item_accumulator: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_accumulator.png
+- item_adamantite_ore: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_adamantite_ore.png
+- item_air_rune: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_air_rune.png
+- item_ancestral: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_ancestral.png
+- item_ancient_coin: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_ancient_coin.png
+- item_armadyl: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_armadyl.png
+- item_arrav_shield_left: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_arrav_shield_left.png
+- item_arrav_shield_right: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_arrav_shield_right.png
+- item_black_bead: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_black_bead.png
+- item_black_knight_intel: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_black_knight_intel.png
+- item_blue_dye: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_blue_dye.png
+- item_blurite_ore: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_blurite_ore.png
+- item_bone_shard: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_bone_shard.png
+- item_bucket_of_milk: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_bucket_of_milk.png
+- item_burnt_meat: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_burnt_meat.png
+- item_charcoal: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_charcoal.png
+- item_chinchompa: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_chinchompa.png
+- item_clay: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_clay.png
+- item_clean_avantoe: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_clean_avantoe.png
+- item_coal: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_coal.png
+- item_coin_pouch: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_coin_pouch.png
+- item_coins: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_coins.png
+- item_cooked_lobster: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_cooked_lobster.png
+- item_cooked_swordfish: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_cooked_swordfish.png
+- item_copper_ore: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_copper_ore.png
+- item_crossbow: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_crossbow.png
+- item_cut_gem: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_cut_gem.png
+- item_dragonfire_shield_fragment: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_dragonfire_shield_fragment.png
+- item_egg: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_egg.png
+- item_eye_of_newt: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_eye_of_newt.png
+- item_fire: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_fire.png
+- item_ghost_skull: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_ghost_skull.png
+- item_godsword: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_godsword.png
+- item_grimy_harralander: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_grimy_harralander.png
+- item_iron_ore: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_iron_ore.png
+- item_key_print: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_key_print.png
+- item_law_rune: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_law_rune.png
+- item_logs: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_logs.png
+- item_magic_logs: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_magic_logs.png
+- item_mark_of_grace: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_mark_of_grace.png
+- item_max: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_max.png
+- item_message_seal: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_message_seal.png
+- item_mind_rune: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_mind_rune.png
+- item_mithril_bar: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_mithril_bar.png
+- item_mithril_ore: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_mithril_ore.png
+- item_nature_rune: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_nature_rune.png
+- item_oak_logs: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_oak_logs.png
+- item_oak_plank: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_oak_plank.png
+- item_onion: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_onion.png
+- item_orange_dye: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_orange_dye.png
+- item_pot_of_flour: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_pot_of_flour.png
+- item_pressure_gauge: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_pressure_gauge.png
+- item_raw_anchovies: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_raw_anchovies.png
+- item_raw_lobster: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_raw_lobster.png
+- item_raw_salmon: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_raw_salmon.png
+- item_raw_shark: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_raw_shark.png
+- item_raw_shrimp: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_raw_shrimp.png
+- item_raw_swordfish: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_raw_swordfish.png
+- item_raw_trout: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_raw_trout.png
+- item_red_bead: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_red_bead.png
+- item_rescue_disguise: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_rescue_disguise.png
+- item_rune_arrow: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_rune_arrow.png
+- item_rune_research_notes: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_rune_research_notes.png
+- item_runite_ore: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_runite_ore.png
+- item_sea_chart: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_sea_chart.png
+- item_silverlight_relic: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_silverlight_relic.png
+- item_slayer_contract: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_slayer_contract.png
+- item_staff: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_staff.png
+- item_steel_bar: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_steel_bar.png
+- item_tin_ore: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_tin_ore.png
+- item_torva: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_torva.png
+- item_treasure_key: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_treasure_key.png
+- item_unfinished_potion: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_unfinished_potion.png
+- item_white_bead: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_white_bead.png
+- item_willow_logs: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_willow_logs.png
+- item_wool: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_wool.png
+- item_yellow_bead: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_yellow_bead.png
+- item_yew_logs: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/item_yew_logs.png
+
+## npc
+
+- npc_arena_master: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_arena_master.png
+- npc_cook: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_cook.png
+- npc_depths_watcher: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_depths_watcher.png
+- npc_doric: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_doric.png
+- npc_duke_horacio: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_duke_horacio.png
+- npc_emir_herald: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_emir_herald.png
+- npc_father_aereck: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_father_aereck.png
+- npc_fred_farmer: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_fred_farmer.png
+- npc_general_bentnoze: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_general_bentnoze.png
+- npc_guide: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_guide.png
+- npc_guild_registrar: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_guild_registrar.png
+- npc_guildmaster: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_guildmaster.png
+- npc_gypsy_aris: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_gypsy_aris.png
+- npc_hans: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_hans.png
+- npc_hassan: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_hassan.png
+- npc_hetty: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_hetty.png
+- npc_morgan: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_morgan.png
+- npc_ozyach: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_ozyach.png
+- npc_quest_oracle: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_quest_oracle.png
+- npc_redbeard_frank: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_redbeard_frank.png
+- npc_reldo: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_reldo.png
+- npc_romeo: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_romeo.png
+- npc_rune_sage: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_rune_sage.png
+- npc_shadow_keeper: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_shadow_keeper.png
+- npc_shopkeeper: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_shopkeeper.png
+- npc_sir_amik: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_sir_amik.png
+- npc_squire: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_squire.png
+- npc_veronica: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_veronica.png
+- npc_villager: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_villager.png
+- npc_wilderness_warning: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_wilderness_warning.png
+- npc_wizard_mizgog: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/npc_wizard_mizgog.png
+
+## player
+
+- player_magic: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/player_magic.png
+- player_magic_battlemage: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/player_magic_battlemage.png
+- player_magic_sage: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/player_magic_sage.png
+- player_melee: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/player_melee.png
+- player_melee_berserker: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/player_melee_berserker.png
+- player_melee_iron: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/player_melee_iron.png
+- player_ranged: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/player_ranged.png
+- player_ranged_hunter: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/player_ranged_hunter.png
+- player_ranged_scout: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/player_ranged_scout.png
+
+## ui
+
+- ui_panel_texture: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/ui_panel_texture.png
+- ui_quest_icon: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/ui_quest_icon.png
+- ui_spellbook_icon: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/ui_spellbook_icon.png
+- ui_trade_icon: https://sgovyucdf8v5ofk9.public.blob.vercel-storage.com/runescape-arena/assets/generated/ui_trade_icon.png
+

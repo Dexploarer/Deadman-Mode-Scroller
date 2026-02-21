@@ -1,0 +1,965 @@
+[
+  {
+    "id": "bg_runecraft_nexus",
+    "kind": "background",
+    "size": "1536x1024",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "arcane rune temple floating crystals and altar circle, painted matte background for side-scroller game, mystical blue lighting, no text"
+  },
+  {
+    "id": "bg_shadow_dungeon",
+    "kind": "background",
+    "size": "1536x1024",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "ancient underground dungeon corridor with torches and stone arches, painted matte background for game interior cell, no text"
+  },
+  {
+    "id": "bg_surface_main",
+    "kind": "background",
+    "size": "1536x1024",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "fantasy countryside with castle silhouettes, lumbridge-like village vibe, painted matte background for side-scroller game, daytime sky, no text"
+  },
+  {
+    "id": "bg_wilderness_depths",
+    "kind": "background",
+    "size": "1536x1024",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "dangerous wasteland with dead trees and ruined obelisks, painted matte background for side-scroller game, crimson fog, no text"
+  },
+  {
+    "id": "item_abyssal_contract",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of abyssal contract, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "abyssal_contract"
+  },
+  {
+    "id": "item_accumulator",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of accumulator, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "accumulator"
+  },
+  {
+    "id": "item_adamantite_ore",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of adamantite ore, rough mining ore rock, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "adamantite_ore"
+  },
+  {
+    "id": "item_air_rune",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of air rune, magical carved rune, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "air_rune"
+  },
+  {
+    "id": "item_ancestral",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of ancestral, armor set emblem, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "ancestral"
+  },
+  {
+    "id": "item_ancient_coin",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of ancient coin, stack of fantasy coins, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "ancient_coin"
+  },
+  {
+    "id": "item_armadyl",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of armadyl, armor set emblem, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "armadyl"
+  },
+  {
+    "id": "item_arrav_shield_left",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of arrav shield left, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "arrav_shield_left"
+  },
+  {
+    "id": "item_arrav_shield_right",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of arrav shield right, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "arrav_shield_right"
+  },
+  {
+    "id": "item_black_bead",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of black bead, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "black_bead"
+  },
+  {
+    "id": "item_black_knight_intel",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of black knight intel, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "black_knight_intel"
+  },
+  {
+    "id": "item_blue_dye",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of blue dye, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "blue_dye"
+  },
+  {
+    "id": "item_blurite_ore",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of blurite ore, rough mining ore rock, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "blurite_ore"
+  },
+  {
+    "id": "item_bone_shard",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of bone shard, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "bone_shard"
+  },
+  {
+    "id": "item_bucket_of_milk",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of bucket of milk, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "bucket_of_milk"
+  },
+  {
+    "id": "item_burnt_meat",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of burnt meat, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "burnt_meat"
+  },
+  {
+    "id": "item_charcoal",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of charcoal, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "charcoal"
+  },
+  {
+    "id": "item_chinchompa",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of chinchompa, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "chinchompa"
+  },
+  {
+    "id": "item_clay",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of clay, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "clay"
+  },
+  {
+    "id": "item_clean_avantoe",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of clean avantoe, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "clean_avantoe"
+  },
+  {
+    "id": "item_coal",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of coal, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "coal"
+  },
+  {
+    "id": "item_coin_pouch",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of coin pouch, stack of fantasy coins, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "coin_pouch"
+  },
+  {
+    "id": "item_coins",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of coins, stack of fantasy coins, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "coins"
+  },
+  {
+    "id": "item_cooked_lobster",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of cooked lobster, food item for fantasy RPG, old-school MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "cooked_lobster"
+  },
+  {
+    "id": "item_cooked_swordfish",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of cooked swordfish, food item for fantasy RPG, old-school MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "cooked_swordfish"
+  },
+  {
+    "id": "item_copper_ore",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of copper ore, rough mining ore rock, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "copper_ore"
+  },
+  {
+    "id": "item_crossbow",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of crossbow, equipped weapon art, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "crossbow"
+  },
+  {
+    "id": "item_cut_gem",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of cut gem, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "cut_gem"
+  },
+  {
+    "id": "item_dragonfire_shield_fragment",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of dragonfire shield fragment, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "dragonfire_shield_fragment"
+  },
+  {
+    "id": "item_egg",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of egg, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "egg"
+  },
+  {
+    "id": "item_eye_of_newt",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of eye of newt, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "eye_of_newt"
+  },
+  {
+    "id": "item_fire",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of fire, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "fire"
+  },
+  {
+    "id": "item_ghost_skull",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of ghost skull, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "ghost_skull"
+  },
+  {
+    "id": "item_godsword",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of godsword, equipped weapon art, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "godsword"
+  },
+  {
+    "id": "item_grimy_harralander",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of grimy harralander, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "grimy_harralander"
+  },
+  {
+    "id": "item_iron_ore",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of iron ore, rough mining ore rock, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "iron_ore"
+  },
+  {
+    "id": "item_key_print",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of key print, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "key_print"
+  },
+  {
+    "id": "item_law_rune",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of law rune, magical carved rune, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "law_rune"
+  },
+  {
+    "id": "item_logs",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of logs, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "logs"
+  },
+  {
+    "id": "item_magic_logs",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of magic logs, chopped wood bundle, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "magic_logs"
+  },
+  {
+    "id": "item_mark_of_grace",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of mark of grace, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "mark_of_grace"
+  },
+  {
+    "id": "item_max",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of max, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "max"
+  },
+  {
+    "id": "item_message_seal",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of message seal, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "message_seal"
+  },
+  {
+    "id": "item_mind_rune",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of mind rune, magical carved rune, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "mind_rune"
+  },
+  {
+    "id": "item_mithril_bar",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of mithril bar, forged metal bar, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "mithril_bar"
+  },
+  {
+    "id": "item_mithril_ore",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of mithril ore, rough mining ore rock, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "mithril_ore"
+  },
+  {
+    "id": "item_nature_rune",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of nature rune, magical carved rune, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "nature_rune"
+  },
+  {
+    "id": "item_oak_logs",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of oak logs, chopped wood bundle, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "oak_logs"
+  },
+  {
+    "id": "item_oak_plank",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of oak plank, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "oak_plank"
+  },
+  {
+    "id": "item_onion",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of onion, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "onion"
+  },
+  {
+    "id": "item_orange_dye",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of orange dye, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "orange_dye"
+  },
+  {
+    "id": "item_pot_of_flour",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of pot of flour, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "pot_of_flour"
+  },
+  {
+    "id": "item_pressure_gauge",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of pressure gauge, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "pressure_gauge"
+  },
+  {
+    "id": "item_raw_anchovies",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of raw anchovies, food item for fantasy RPG, old-school MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "raw_anchovies"
+  },
+  {
+    "id": "item_raw_lobster",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of raw lobster, food item for fantasy RPG, old-school MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "raw_lobster"
+  },
+  {
+    "id": "item_raw_salmon",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of raw salmon, food item for fantasy RPG, old-school MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "raw_salmon"
+  },
+  {
+    "id": "item_raw_shark",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of raw shark, food item for fantasy RPG, old-school MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "raw_shark"
+  },
+  {
+    "id": "item_raw_shrimp",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of raw shrimp, food item for fantasy RPG, old-school MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "raw_shrimp"
+  },
+  {
+    "id": "item_raw_swordfish",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of raw swordfish, food item for fantasy RPG, old-school MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "raw_swordfish"
+  },
+  {
+    "id": "item_raw_trout",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of raw trout, food item for fantasy RPG, old-school MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "raw_trout"
+  },
+  {
+    "id": "item_red_bead",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of red bead, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "red_bead"
+  },
+  {
+    "id": "item_rescue_disguise",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of rescue disguise, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "rescue_disguise"
+  },
+  {
+    "id": "item_rune_arrow",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of rune arrow, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "rune_arrow"
+  },
+  {
+    "id": "item_rune_research_notes",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of rune research notes, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "rune_research_notes"
+  },
+  {
+    "id": "item_runite_ore",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of runite ore, rough mining ore rock, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "runite_ore"
+  },
+  {
+    "id": "item_sea_chart",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of sea chart, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "sea_chart"
+  },
+  {
+    "id": "item_silverlight_relic",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of silverlight relic, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "silverlight_relic"
+  },
+  {
+    "id": "item_slayer_contract",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of slayer contract, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "slayer_contract"
+  },
+  {
+    "id": "item_staff",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of staff, equipped weapon art, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "staff"
+  },
+  {
+    "id": "item_steel_bar",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of steel bar, forged metal bar, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "steel_bar"
+  },
+  {
+    "id": "item_tin_ore",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of tin ore, rough mining ore rock, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "tin_ore"
+  },
+  {
+    "id": "item_torva",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of torva, armor set emblem, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "torva"
+  },
+  {
+    "id": "item_treasure_key",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of treasure key, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "treasure_key"
+  },
+  {
+    "id": "item_unfinished_potion",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of unfinished potion, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "unfinished_potion"
+  },
+  {
+    "id": "item_white_bead",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of white bead, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "white_bead"
+  },
+  {
+    "id": "item_willow_logs",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of willow logs, chopped wood bundle, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "willow_logs"
+  },
+  {
+    "id": "item_wool",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of wool, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "wool"
+  },
+  {
+    "id": "item_yellow_bead",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of yellow bead, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "yellow_bead"
+  },
+  {
+    "id": "item_yew_logs",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "medium",
+    "model": "gpt-image-1",
+    "prompt": "single inventory icon of yew logs, chopped wood bundle, old-school fantasy MMORPG item icon, centered object, transparent background, no text",
+    "item_id": "yew_logs"
+  },
+  {
+    "id": "npc_arena_master",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body armored medieval guard NPC named Arena Master, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "arena_master"
+  },
+  {
+    "id": "npc_cook",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body town civilian NPC named Cook, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "cook"
+  },
+  {
+    "id": "npc_depths_watcher",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body armored medieval guard NPC named Depths Watcher, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "depths_watcher"
+  },
+  {
+    "id": "npc_doric",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body fantasy town NPC named Doric, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "doric"
+  },
+  {
+    "id": "npc_duke_horacio",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body armored medieval guard NPC named Duke Horacio, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "duke_horacio"
+  },
+  {
+    "id": "npc_emir_herald",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body fantasy town NPC named Emir's Herald, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "emir_herald"
+  },
+  {
+    "id": "npc_father_aereck",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body fantasy town NPC named Father Aereck, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "father_aereck"
+  },
+  {
+    "id": "npc_fred_farmer",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body town civilian NPC named Fred Farmer, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "fred_farmer"
+  },
+  {
+    "id": "npc_general_bentnoze",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body goblin chief NPC named General Bentnoze, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "general_bentnoze"
+  },
+  {
+    "id": "npc_guide",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body fantasy town NPC named Gielinor Guide, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "guide"
+  },
+  {
+    "id": "npc_guild_registrar",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body armored medieval guard NPC named Skills Registrar, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "guild_registrar"
+  },
+  {
+    "id": "npc_guildmaster",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body armored medieval guard NPC named Guild Master, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "guildmaster"
+  },
+  {
+    "id": "npc_villager",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "friendly medieval villager npc full-body sprite, old-school fantasy MMORPG 2007-inspired style, neutral pose, transparent background"
+  },
+  {
+    "id": "player_magic",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body fantasy mage sprite sheet frame, blue robes, runic staff, old-school MMORPG 2007-inspired low-detail painterly style, clean silhouette, transparent background"
+  },
+  {
+    "id": "player_magic_battlemage",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body fantasy battle mage, dark robes with glowing runes and crystal staff, old-school MMORPG 2007-inspired low-detail painterly style, clean silhouette, transparent background"
+  },
+  {
+    "id": "player_magic_sage",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body fantasy arcane sage, indigo robes and rune staff, old-school MMORPG 2007-inspired low-detail painterly style, clean silhouette, transparent background"
+  },
+  {
+    "id": "player_melee",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body fantasy warrior sprite sheet frame, red steel armor, one-handed sword, old-school MMORPG 2007-inspired low-detail painterly style, clean silhouette, transparent background"
+  },
+  {
+    "id": "player_melee_berserker",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body fantasy berserker warrior, heavy red armor and two-handed blade, old-school MMORPG 2007-inspired low-detail painterly style, clean silhouette, transparent background"
+  },
+  {
+    "id": "player_melee_iron",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body fantasy melee fighter, iron plate armor, kite shield and sword, old-school MMORPG 2007-inspired low-detail painterly style, clean silhouette, transparent background"
+  },
+  {
+    "id": "player_ranged",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body fantasy ranger sprite sheet frame, green leather armor, shortbow, old-school MMORPG 2007-inspired low-detail painterly style, clean silhouette, transparent background"
+  },
+  {
+    "id": "player_ranged_hunter",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body fantasy ranger hunter, green hooded leather armor and longbow, old-school MMORPG 2007-inspired low-detail painterly style, clean silhouette, transparent background"
+  },
+  {
+    "id": "player_ranged_scout",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body fantasy ranged scout, blue-green leather armor and crossbow, old-school MMORPG 2007-inspired low-detail painterly style, clean silhouette, transparent background"
+  },
+  {
+    "id": "ui_panel_texture",
+    "kind": "ui",
+    "size": "1024x1024",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "parchment and hammered metal fantasy UI panel texture tileable, high contrast edges, no text, transparent corners"
+  },
+  {
+    "id": "ui_quest_icon",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "single icon, parchment quest scroll with wax seal, old-school fantasy game UI icon, transparent background"
+  },
+  {
+    "id": "ui_spellbook_icon",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "single icon, glowing rune spellbook emblem, old-school fantasy game UI icon, transparent background"
+  },
+  {
+    "id": "ui_trade_icon",
+    "kind": "icon",
+    "size": "1024x1024",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "single icon, crossed coins and handshake symbol, old-school fantasy game UI icon, transparent background"
+  }
+]

@@ -1,11 +1,13 @@
 import { describe, expect, it } from "bun:test";
 import {
+  F2P_SKILL_ORDER,
   addXp,
   applyCombatXp,
   consumeInventory,
   createDefaultProgress,
   getInventoryQty,
   getLevelForXp,
+  isSkillUnlockedInMode,
   getXpForLevel,
   XP_MULTIPLIER,
 } from "../progression";
@@ -17,6 +19,17 @@ describe("progression", () => {
     expect(progress.skills.hitpoints.xp).toBe(getXpForLevel(10));
     expect(progress.skills.mining.level).toBe(1);
     expect(progress.skills.runecrafting.level).toBe(1);
+    expect(progress.skills.agility.level).toBe(1);
+    expect(progress.skills.cooking.level).toBe(1);
+    expect(progress.skills.construction.level).toBe(1);
+    expect(progress.skills.sailing.level).toBe(1);
+  });
+
+  it("keeps members skills locked in f2p mode", () => {
+    expect(isSkillUnlockedInMode("magic", "f2p_2007")).toBe(true);
+    expect(isSkillUnlockedInMode("agility", "f2p_2007")).toBe(false);
+    expect(isSkillUnlockedInMode("agility", "seasonal")).toBe(true);
+    expect(F2P_SKILL_ORDER.includes("crafting")).toBe(true);
   });
 
   it("adds xp with configured multiplier", () => {
@@ -26,6 +39,14 @@ describe("progression", () => {
     expect(gain.gained_xp).toBe(Math.floor(100 * XP_MULTIPLIER));
     expect(progress.skills.mining.xp).toBe(gain.total_xp);
     expect(gain.new_level).toBe(getLevelForXp(gain.total_xp));
+  });
+
+  it("does not grant xp to members-only skills in f2p mode", () => {
+    const progress = createDefaultProgress("Agent_members_lock");
+    const gain = addXp(progress, "agility", 100, { mode: "f2p_2007" });
+
+    expect(gain.gained_xp).toBe(0);
+    expect(progress.skills.agility.xp).toBe(0);
   });
 
   it("awards combat xp to correct skills", () => {

@@ -1,9 +1,17 @@
-import type { AgentProgress, AttackAction, SkillName, SkillState } from "./types";
+import type {
+  AgentProgress,
+  AttackAction,
+  F2PSkillName,
+  GameMode,
+  MembersSkillName,
+  SkillName,
+  SkillState,
+} from "./types";
 
 export const XP_MULTIPLIER = 1.12;
 const MAX_LEVEL = 99;
 
-const SKILL_ORDER: SkillName[] = [
+export const F2P_SKILL_ORDER: F2PSkillName[] = [
   "attack",
   "strength",
   "defence",
@@ -11,13 +19,29 @@ const SKILL_ORDER: SkillName[] = [
   "ranged",
   "magic",
   "prayer",
-  "mining",
-  "fishing",
-  "woodcutting",
   "runecrafting",
+  "mining",
+  "smithing",
+  "fishing",
+  "cooking",
+  "firemaking",
+  "woodcutting",
+  "crafting",
+];
+
+export const MEMBERS_SKILL_ORDER: MembersSkillName[] = [
+  "construction",
+  "agility",
+  "herblore",
+  "thieving",
+  "fletching",
+  "slayer",
+  "hunter",
+  "farming",
   "sailing",
 ];
 
+const SKILL_ORDER: SkillName[] = [...F2P_SKILL_ORDER, ...MEMBERS_SKILL_ORDER];
 const XP_TABLE = buildXpTable();
 
 function buildXpTable(): number[] {
@@ -60,6 +84,19 @@ export function createDefaultSkills(): Record<SkillName, SkillState> {
   return base as Record<SkillName, SkillState>;
 }
 
+export function isF2PSkill(skill: SkillName): skill is F2PSkillName {
+  return (F2P_SKILL_ORDER as string[]).includes(skill);
+}
+
+export function isMembersSkill(skill: SkillName): skill is MembersSkillName {
+  return (MEMBERS_SKILL_ORDER as string[]).includes(skill);
+}
+
+export function isSkillUnlockedInMode(skill: SkillName, mode: GameMode): boolean {
+  if (mode !== "f2p_2007") return true;
+  return isF2PSkill(skill);
+}
+
 export function createDefaultProgress(agent_id: string): AgentProgress {
   return {
     agent_id,
@@ -77,7 +114,25 @@ export interface XpGain {
   total_xp: number;
 }
 
-export function addXp(progress: AgentProgress, skill: SkillName, baseXp: number): XpGain {
+export function addXp(
+  progress: AgentProgress,
+  skill: SkillName,
+  baseXp: number,
+  options?: { mode?: GameMode; bypassModeGate?: boolean }
+): XpGain {
+  const mode = options?.mode ?? "f2p_2007";
+  const skillUnlocked = options?.bypassModeGate || isSkillUnlockedInMode(skill, mode);
+  if (!skillUnlocked) {
+    const currentLocked = progress.skills[skill] ?? { level: 1, xp: 0 };
+    return {
+      skill,
+      gained_xp: 0,
+      old_level: currentLocked.level,
+      new_level: currentLocked.level,
+      total_xp: currentLocked.xp,
+    };
+  }
+
   const scaled = Math.max(0, Math.floor(baseXp * XP_MULTIPLIER));
   const current = progress.skills[skill] ?? { level: 1, xp: 0 };
   const oldLevel = current.level;

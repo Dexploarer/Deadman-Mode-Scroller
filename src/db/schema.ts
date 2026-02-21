@@ -20,6 +20,144 @@ export async function ensureSchema(sql: Sql): Promise<void> {
   `;
 
   await sql`
+    create table if not exists accounts (
+      account_id text primary key,
+      wallet_address text not null unique,
+      display_name text not null,
+      account_type text not null default 'human',
+      created_at bigint not null,
+      updated_at bigint not null
+    )
+  `;
+
+  await sql`
+    create table if not exists wallet_nonces (
+      wallet_address text primary key,
+      nonce text not null,
+      expires_at bigint not null,
+      created_at bigint not null
+    )
+  `;
+
+  await sql`
+    create table if not exists sessions (
+      session_token text primary key,
+      account_id text not null,
+      character_id text,
+      actor_type text not null default 'human',
+      expires_at bigint not null,
+      created_at bigint not null
+    )
+  `;
+
+  await sql`
+    create table if not exists characters (
+      character_id text primary key,
+      account_id text not null,
+      name text not null,
+      mode text not null,
+      combat_class text not null,
+      selected boolean not null default false,
+      created_at bigint not null,
+      updated_at bigint not null
+    )
+  `;
+
+  await sql`
+    create unique index if not exists idx_characters_account_name
+    on characters (account_id, name)
+  `;
+
+  await sql`
+    create table if not exists equipment (
+      character_id text primary key,
+      payload jsonb not null
+    )
+  `;
+
+  await sql`
+    create table if not exists bank_items (
+      character_id text not null,
+      item_id text not null,
+      qty integer not null,
+      primary key (character_id, item_id)
+    )
+  `;
+
+  await sql`
+    create table if not exists quest_states (
+      character_id text not null,
+      quest_id text not null,
+      status text not null,
+      objective_index integer not null,
+      started_at bigint,
+      completed_at bigint,
+      reward_claimed boolean not null default false,
+      primary key (character_id, quest_id)
+    )
+  `;
+
+  await sql`
+    create table if not exists dialogue_states (
+      character_id text primary key,
+      npc_id text not null,
+      node_id text not null,
+      updated_at bigint not null
+    )
+  `;
+
+  await sql`
+    create table if not exists trade_offers (
+      trade_id text primary key,
+      from_character_id text not null,
+      to_character_id text not null,
+      offered_items jsonb not null,
+      requested_items jsonb not null,
+      status text not null,
+      created_at bigint not null,
+      updated_at bigint not null
+    )
+  `;
+
+  await sql`
+    create table if not exists ge_orders (
+      order_id text primary key,
+      character_id text not null,
+      item_id text not null,
+      qty integer not null,
+      price_each integer not null,
+      side text not null,
+      status text not null,
+      filled_qty integer not null default 0,
+      created_at bigint not null,
+      updated_at bigint not null
+    )
+  `;
+
+  await sql`
+    create table if not exists shard_snapshots (
+      id bigserial primary key,
+      shard_id text not null,
+      area_id text not null,
+      instance_id text,
+      mode text not null,
+      online_count integer not null,
+      created_at bigint not null
+    )
+  `;
+
+  await sql`
+    create table if not exists kill_logs (
+      id bigserial primary key,
+      attacker_character_id text,
+      defender_character_id text,
+      mode text not null,
+      area_id text not null,
+      created_at bigint not null
+    )
+  `;
+
+  await sql`
     create table if not exists agent_skills (
       agent_id text not null,
       skill text not null,
@@ -99,6 +237,27 @@ export async function ensureSchema(sql: Sql): Promise<void> {
   await sql`
     alter table resource_nodes
     add column if not exists instance_id text
+  `;
+
+  await sql`
+    alter table accounts
+    add column if not exists account_type text not null default 'human'
+  `;
+
+  await sql`
+    alter table sessions
+    add column if not exists actor_type text not null default 'human'
+  `;
+
+  await sql`
+    create table if not exists agent_profiles (
+      account_id text primary key,
+      runtime_label text not null,
+      endpoint_url text,
+      skills_md text not null default '',
+      notes text not null default '',
+      updated_at bigint not null
+    )
   `;
 
   await sql`

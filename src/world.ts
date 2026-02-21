@@ -1,12 +1,14 @@
 import type {
   AgentProgress,
   GatheringSkill,
+  GameMode,
   ResourceNode,
   ResourceNodeType,
   SkillName,
   WorldArea,
   WorldPortal,
 } from "./types";
+import { isSkillUnlockedInMode } from "./progression";
 
 export const INTERACTION_MAX_DISTANCE = 130;
 
@@ -23,6 +25,7 @@ export interface ResourceNodeTemplate {
   respawn_ms: number;
   x: number;
   y: number;
+  members_only?: boolean;
 }
 
 const WORLD_AREAS: WorldArea[] = [
@@ -32,6 +35,7 @@ const WORLD_AREAS: WorldArea[] = [
     description: "Lumbridge through Al Kharid with Emir's Arena access",
     environment: "mainline",
     shared: true,
+    scene_type: "side_scroller",
     world_width: 12000,
     spawn_x: 320,
     spawn_y: 520,
@@ -43,6 +47,7 @@ const WORLD_AREAS: WorldArea[] = [
     description: "Arcane altars used to craft runes for spellcasting",
     environment: "arcane",
     shared: true,
+    scene_type: "side_scroller",
     world_width: 3400,
     spawn_x: 420,
     spawn_y: 520,
@@ -54,6 +59,7 @@ const WORLD_AREAS: WorldArea[] = [
     description: "Harsh PvP wilderness beyond the border",
     environment: "wilderness",
     shared: true,
+    scene_type: "side_scroller",
     world_width: 3600,
     spawn_x: 380,
     spawn_y: 520,
@@ -65,10 +71,23 @@ const WORLD_AREAS: WorldArea[] = [
     description: "Dark dungeon layered behind portal travel",
     environment: "dungeon",
     shared: true,
+    scene_type: "topdown_cell",
     world_width: 3000,
     spawn_x: 300,
     spawn_y: 520,
     spawn_zone: "Dungeon Gate",
+  },
+  {
+    area_id: "skills_guild",
+    name: "Skills Guild",
+    description: "Compressed multi-skill region for quick training loops",
+    environment: "mainline",
+    shared: true,
+    scene_type: "side_scroller",
+    world_width: 2800,
+    spawn_x: 360,
+    spawn_y: 520,
+    spawn_zone: "Guild Courtyard",
   },
   {
     area_id: "quest_shard",
@@ -76,6 +95,7 @@ const WORLD_AREAS: WorldArea[] = [
     description: "Personal quest area for one agent",
     environment: "quest",
     shared: false,
+    scene_type: "topdown_cell",
     world_width: 2200,
     spawn_x: 280,
     spawn_y: 520,
@@ -87,6 +107,7 @@ const WORLD_AREAS: WorldArea[] = [
     description: "Instanced duel battleground",
     environment: "minigame",
     shared: false,
+    scene_type: "topdown_cell",
     world_width: 2600,
     spawn_x: 760,
     spawn_y: 520,
@@ -131,6 +152,19 @@ const WORLD_PORTALS: WorldPortal[] = [
     to_x: 380,
     to_y: 520,
     to_zone: "Depths Entry",
+    kind: "travel",
+    default_scope: "shared",
+  },
+  {
+    portal_id: "skills_guild_portal",
+    name: "Skills Guild Gate",
+    from_area_id: "surface_main",
+    from_x: 4720,
+    from_y: 520,
+    to_area_id: "skills_guild",
+    to_x: 360,
+    to_y: 520,
+    to_zone: "Guild Courtyard",
     kind: "travel",
     default_scope: "shared",
   },
@@ -200,6 +234,19 @@ const WORLD_PORTALS: WorldPortal[] = [
     default_scope: "shared",
   },
   {
+    portal_id: "return_surface_from_skills",
+    name: "Surface Return",
+    from_area_id: "skills_guild",
+    from_x: 220,
+    from_y: 520,
+    to_area_id: "surface_main",
+    to_x: 4680,
+    to_y: 520,
+    to_zone: "Varrock",
+    kind: "travel",
+    default_scope: "shared",
+  },
+  {
     portal_id: "return_nexus_from_quest",
     name: "Nexus Return",
     from_area_id: "quest_shard",
@@ -209,6 +256,32 @@ const WORLD_PORTALS: WorldPortal[] = [
     to_x: 1840,
     to_y: 520,
     to_zone: "Nexus Gate",
+    kind: "travel",
+    default_scope: "shared",
+  },
+  {
+    portal_id: "surface_loop_east",
+    name: "Eastern Horizon Gate",
+    from_area_id: "surface_main",
+    from_x: 11840,
+    from_y: 520,
+    to_area_id: "surface_main",
+    to_x: 220,
+    to_y: 520,
+    to_zone: "Lumbridge",
+    kind: "travel",
+    default_scope: "shared",
+  },
+  {
+    portal_id: "surface_loop_west",
+    name: "Western Horizon Gate",
+    from_area_id: "surface_main",
+    from_x: 180,
+    from_y: 520,
+    to_area_id: "surface_main",
+    to_x: 11620,
+    to_y: 520,
+    to_zone: "Emir's Arena",
     kind: "travel",
     default_scope: "shared",
   },
@@ -521,6 +594,272 @@ const TEMPLATES: ResourceNodeTemplate[] = [
     x: 1640,
     y: 520,
   },
+
+  // Surface support skills
+  {
+    type: "cooking_range",
+    skill: "cooking",
+    item_id: "cooked_lobster",
+    zone: "Al Kharid",
+    area_id: "surface_main",
+    level_required: 1,
+    xp: 30,
+    success_chance: 0.84,
+    respawn_ms: 1800,
+    x: 6780,
+    y: 520,
+  },
+  {
+    type: "smithing_anvil",
+    skill: "smithing",
+    item_id: "steel_bar",
+    zone: "Al Kharid",
+    area_id: "surface_main",
+    level_required: 15,
+    xp: 44,
+    success_chance: 0.72,
+    respawn_ms: 2400,
+    x: 6880,
+    y: 520,
+  },
+  {
+    type: "firemaking_pit",
+    skill: "firemaking",
+    item_id: "charcoal",
+    zone: "Wilderness Border",
+    area_id: "surface_main",
+    level_required: 1,
+    xp: 35,
+    success_chance: 0.8,
+    respawn_ms: 2100,
+    x: 7010,
+    y: 520,
+  },
+  {
+    type: "thieving_stall",
+    skill: "thieving",
+    item_id: "coin_pouch",
+    zone: "Varrock",
+    area_id: "surface_main",
+    level_required: 5,
+    xp: 38,
+    success_chance: 0.72,
+    respawn_ms: 2200,
+    x: 3920,
+    y: 520,
+  },
+  {
+    type: "agility_course",
+    skill: "agility",
+    item_id: "mark_of_grace",
+    zone: "Varrock",
+    area_id: "surface_main",
+    level_required: 10,
+    xp: 44,
+    success_chance: 0.76,
+    respawn_ms: 1500,
+    x: 4520,
+    y: 520,
+  },
+  {
+    type: "prayer_altar",
+    skill: "prayer",
+    item_id: "bone_shard",
+    zone: "Varrock",
+    area_id: "surface_main",
+    level_required: 1,
+    xp: 20,
+    success_chance: 0.88,
+    respawn_ms: 1300,
+    x: 3720,
+    y: 520,
+  },
+  {
+    type: "crafting_wheel",
+    skill: "crafting",
+    item_id: "cut_gem",
+    zone: "Al Kharid",
+    area_id: "surface_main",
+    level_required: 20,
+    xp: 58,
+    success_chance: 0.64,
+    respawn_ms: 2500,
+    x: 5850,
+    y: 520,
+  },
+  {
+    type: "fletching_table",
+    skill: "fletching",
+    item_id: "rune_arrow",
+    zone: "Al Kharid",
+    area_id: "surface_main",
+    level_required: 10,
+    xp: 48,
+    success_chance: 0.7,
+    respawn_ms: 2200,
+    x: 5990,
+    y: 520,
+  },
+  {
+    type: "farming_patch",
+    skill: "farming",
+    item_id: "grimy_harralander",
+    zone: "Wilderness Border",
+    area_id: "surface_main",
+    level_required: 1,
+    xp: 26,
+    success_chance: 0.8,
+    respawn_ms: 3000,
+    x: 7140,
+    y: 520,
+  },
+  {
+    type: "sailing_dock",
+    skill: "sailing",
+    item_id: "sea_chart",
+    zone: "Wilderness Border",
+    area_id: "surface_main",
+    level_required: 1,
+    xp: 30,
+    success_chance: 0.76,
+    respawn_ms: 2200,
+    x: 7240,
+    y: 520,
+  },
+
+  // Skills guild concentrated training
+  {
+    type: "cooking_range",
+    skill: "cooking",
+    item_id: "cooked_swordfish",
+    zone: "Guild Courtyard",
+    area_id: "skills_guild",
+    level_required: 35,
+    xp: 82,
+    success_chance: 0.58,
+    respawn_ms: 1900,
+    x: 760,
+    y: 520,
+  },
+  {
+    type: "smithing_anvil",
+    skill: "smithing",
+    item_id: "mithril_bar",
+    zone: "Workshop Wing",
+    area_id: "skills_guild",
+    level_required: 45,
+    xp: 96,
+    success_chance: 0.5,
+    respawn_ms: 2600,
+    x: 980,
+    y: 520,
+  },
+  {
+    type: "herblore_lab",
+    skill: "herblore",
+    item_id: "unfinished_potion",
+    zone: "Workshop Wing",
+    area_id: "skills_guild",
+    level_required: 3,
+    xp: 52,
+    success_chance: 0.74,
+    respawn_ms: 2200,
+    x: 1220,
+    y: 520,
+  },
+  {
+    type: "hunter_trapline",
+    skill: "hunter",
+    item_id: "chinchompa",
+    zone: "Guild Courtyard",
+    area_id: "skills_guild",
+    level_required: 15,
+    xp: 72,
+    success_chance: 0.6,
+    respawn_ms: 3200,
+    x: 1460,
+    y: 520,
+  },
+  {
+    type: "slayer_contract_board",
+    skill: "slayer",
+    item_id: "slayer_contract",
+    zone: "Workshop Wing",
+    area_id: "skills_guild",
+    level_required: 25,
+    xp: 80,
+    success_chance: 0.62,
+    respawn_ms: 3000,
+    x: 1680,
+    y: 520,
+  },
+  {
+    type: "construction_bench",
+    skill: "construction",
+    item_id: "oak_plank",
+    zone: "Workshop Wing",
+    area_id: "skills_guild",
+    level_required: 1,
+    xp: 42,
+    success_chance: 0.82,
+    respawn_ms: 2000,
+    x: 1920,
+    y: 520,
+  },
+  {
+    type: "farming_patch",
+    skill: "farming",
+    item_id: "clean_avantoe",
+    zone: "Guild Courtyard",
+    area_id: "skills_guild",
+    level_required: 35,
+    xp: 88,
+    success_chance: 0.56,
+    respawn_ms: 3600,
+    x: 2140,
+    y: 520,
+  },
+  {
+    type: "agility_course",
+    skill: "agility",
+    item_id: "mark_of_grace",
+    zone: "Rooftop Course",
+    area_id: "skills_guild",
+    level_required: 35,
+    xp: 84,
+    success_chance: 0.58,
+    respawn_ms: 1400,
+    x: 2380,
+    y: 520,
+  },
+
+  // High-risk versions in deeper zones
+  {
+    type: "thieving_stall",
+    skill: "thieving",
+    item_id: "ancient_coin",
+    zone: "Shadow Halls",
+    area_id: "shadow_dungeon",
+    level_required: 50,
+    xp: 100,
+    success_chance: 0.5,
+    respawn_ms: 2600,
+    x: 1260,
+    y: 520,
+  },
+  {
+    type: "slayer_contract_board",
+    skill: "slayer",
+    item_id: "abyssal_contract",
+    zone: "Ancient Vault",
+    area_id: "shadow_dungeon",
+    level_required: 65,
+    xp: 118,
+    success_chance: 0.42,
+    respawn_ms: 3400,
+    x: 2260,
+    y: 520,
+  },
 ];
 
 const SKILL_INTERVAL_MS: Record<GatheringSkill, number> = {
@@ -528,10 +867,59 @@ const SKILL_INTERVAL_MS: Record<GatheringSkill, number> = {
   woodcutting: 2600,
   fishing: 2200,
   runecrafting: 1800,
+  smithing: 2500,
+  cooking: 1700,
+  firemaking: 1900,
+  crafting: 2300,
+  fletching: 2100,
+  herblore: 2200,
+  agility: 1500,
+  thieving: 2000,
+  hunter: 2800,
+  slayer: 3000,
+  farming: 3200,
+  construction: 2100,
+  prayer: 1600,
+  sailing: 2400,
 };
 
 export function getGatherInterval(skill: GatheringSkill): number {
   return SKILL_INTERVAL_MS[skill];
+}
+
+export function isNodeTrainableInMode(node: ResourceNode, mode: GameMode): boolean {
+  if (node.members_only && mode === "f2p_2007") return false;
+  return isSkillUnlockedInMode(node.skill as SkillName, mode);
+}
+
+export function getPortalHopDistance(fromAreaId: string, toAreaId: string): number | null {
+  if (fromAreaId === toAreaId) return 0;
+
+  const queue: Array<{ areaId: string; hops: number }> = [{ areaId: fromAreaId, hops: 0 }];
+  const seen = new Set<string>([fromAreaId]);
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) continue;
+
+    const exits = WORLD_PORTALS.filter((portal) => portal.from_area_id === current.areaId);
+    for (const exit of exits) {
+      const nextArea = exit.to_area_id;
+      const nextHops = current.hops + 1;
+      if (nextArea === toAreaId) return nextHops;
+      if (seen.has(nextArea)) continue;
+      seen.add(nextArea);
+      queue.push({ areaId: nextArea, hops: nextHops });
+    }
+  }
+
+  return null;
+}
+
+export function isTravelWithinBudget(fromAreaId: string, toAreaId: string): boolean {
+  const hops = getPortalHopDistance(fromAreaId, toAreaId);
+  if (hops === null) return false;
+  return hops <= 2;
 }
 
 export function getWorldAreas(): WorldArea[] {
@@ -561,6 +949,7 @@ export function makeDefaultResourceNodes(): ResourceNode[] {
     node_id: `${template.type}_${index + 1}`,
     ...template,
     depleted_until: null,
+    members_only: template.members_only ?? !isSkillUnlockedInMode(template.skill as SkillName, "f2p_2007"),
   }));
 }
 

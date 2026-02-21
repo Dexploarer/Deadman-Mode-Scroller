@@ -1,0 +1,164 @@
+[
+  {
+    "id": "npc_gypsy_aris",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body arcane spellcaster NPC named Gypsy Aris, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "gypsy_aris"
+  },
+  {
+    "id": "npc_hans",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body town civilian NPC named Hans, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "hans"
+  },
+  {
+    "id": "npc_hassan",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body town civilian NPC named Hassan, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "hassan"
+  },
+  {
+    "id": "npc_hetty",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body arcane spellcaster NPC named Hetty, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "hetty"
+  },
+  {
+    "id": "npc_morgan",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body fantasy town NPC named Morgan, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "morgan"
+  },
+  {
+    "id": "npc_ozyach",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body fantasy town NPC named Oziach, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "ozyach"
+  },
+  {
+    "id": "npc_quest_oracle",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body arcane spellcaster NPC named Quest Oracle, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "quest_oracle"
+  },
+  {
+    "id": "npc_redbeard_frank",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body pirate NPC named Redbeard Frank, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "redbeard_frank"
+  },
+  {
+    "id": "npc_reldo",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body fantasy town NPC named Reldo, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "reldo"
+  },
+  {
+    "id": "npc_romeo",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body fantasy town NPC named Romeo, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "romeo"
+  },
+  {
+    "id": "npc_rune_sage",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body arcane spellcaster NPC named Rune Sage, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "rune_sage"
+  },
+  {
+    "id": "npc_shadow_keeper",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body fantasy town NPC named Shadow Keeper, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "shadow_keeper"
+  },
+  {
+    "id": "npc_shopkeeper",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body town civilian NPC named Shop Keeper, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "shopkeeper"
+  },
+  {
+    "id": "npc_sir_amik",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body armored medieval guard NPC named Sir Amik, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "sir_amik"
+  },
+  {
+    "id": "npc_squire",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body armored medieval guard NPC named Squire, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "squire"
+  },
+  {
+    "id": "npc_veronica",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body fantasy town NPC named Veronica, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "veronica"
+  },
+  {
+    "id": "npc_wilderness_warning",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body fantasy town NPC named Border Guard, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "wilderness_warning"
+  },
+  {
+    "id": "npc_wizard_mizgog",
+    "kind": "sprite",
+    "size": "1024x1536",
+    "quality": "high",
+    "model": "gpt-image-1",
+    "prompt": "full-body arcane spellcaster NPC named Wizard Mizgog, old-school fantasy MMORPG 2007-inspired painterly sprite style, clean silhouette, transparent background, no text",
+    "npc_id": "wizard_mizgog"
+  }
+]

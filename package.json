@@ -7,9 +7,18 @@
     "start": "bun run src/index.ts",
     "lint": "bunx --bun @biomejs/biome lint src --files-ignore-unknown=true --max-diagnostics=200",
     "test": "bun test",
-    "test:once": "bun test --bail"
+    "test:once": "bun test --bail",
+    "assets:prompts:build": "python3 scripts/build_openai_game_asset_prompts.py",
+    "assets:gen": "python3 scripts/generate_openai_game_assets.py",
+    "assets:gen:dry": "python3 scripts/generate_openai_game_assets.py --dry-run",
+    "assets:gen:full": "python3 scripts/build_openai_game_asset_prompts.py && python3 scripts/generate_openai_game_assets.py --prompts assets/prompts/openai-game-full-assets.json --skip-existing",
+    "assets:npc:synthesize": "python3 scripts/synthesize_missing_npc_sprites.py",
+    "assets:blob:upload": "bun run scripts/upload_assets_to_vercel_blob.ts --skip-existing",
+    "assets:blob:dry": "bun run scripts/upload_assets_to_vercel_blob.ts --dry-run",
+    "assets:figma:catalog": "bun run scripts/export_figma_asset_catalog.ts"
   },
   "dependencies": {
+    "@vercel/blob": "^2.3.0",
     "hono": "^4.4.0",
     "nanoid": "^5.0.0",
     "postgres": "^3.4.8"

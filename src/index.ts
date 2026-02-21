@@ -157,6 +157,7 @@ const server = Bun.serve({
           const state = upsertWorldAgent({
             agent_id: data.agent_id,
             combat_class: isCombatClass(data.combat_class) ? data.combat_class : "melee",
+            avatar_id: typeof data.avatar_id === "string" && data.avatar_id.length > 0 ? data.avatar_id : undefined,
             x: data.x,
             y: data.y,
             zone: typeof data.zone === "string" ? data.zone : "Unknown",

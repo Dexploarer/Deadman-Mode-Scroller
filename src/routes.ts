@@ -1616,6 +1616,23 @@ api.post("/arena/accept", async (c) => {
   });
 });
 
+// ── Decline Challenge ──
+api.post("/arena/decline", async (c) => {
+  const body = await c.req.json();
+  const { agent_id, challenge_id } = body;
+
+  const challenge = challenges.get(challenge_id);
+  if (!challenge) return c.json({ error: "Challenge not found" }, 404);
+  if (challenge.target_id !== agent_id) return c.json({ error: "Not your challenge to decline" }, 403);
+  if (challenge.status !== "pending") return c.json({ error: "Challenge already resolved" }, 400);
+
+  challenge.status = "declined";
+  return c.json({
+    status: "challenge_declined",
+    challenge_id: challenge.challenge_id,
+  });
+});
+
 // ── Submit Action ──
 api.post("/arena/action", async (c) => {
   const body: ActionSubmission = await c.req.json();

@@ -72,7 +72,7 @@ canvas{display:block}
   <div id="combat-overlay"></div>
   <div id="controls-help">
     WASD / Arrows — Move &nbsp;|&nbsp; SHIFT — Run &nbsp;|&nbsp; E — Interact &nbsp;|&nbsp; SPACE — Jump<br>
-    F — Register Class &nbsp;|&nbsp; B — Spellbook &nbsp;|&nbsp; K — Skills &nbsp;|&nbsp; M — Atlas &nbsp;|&nbsp; P/H/C/L/O — Menu &nbsp;|&nbsp; 1-4 — Dialogue Choices &nbsp;|&nbsp; Q — Cancel / Stop Train
+    F — Register Class &nbsp;|&nbsp; B — Spellbook &nbsp;|&nbsp; K — Skills &nbsp;|&nbsp; M — Atlas &nbsp;|&nbsp; P/H/C/Y/L/O — Menu &nbsp;|&nbsp; 1-4 — Dialogue Choices &nbsp;|&nbsp; Q — Cancel / Stop Train
   </div>
   <canvas id="minimap" width="180" height="60"></canvas>
   <div id="minimap-container"></div>
@@ -83,6 +83,7 @@ canvas{display:block}
   <button id="menu-profile">Profile</button>
   <button id="menu-highscores">Highscores</button>
   <button id="menu-characters">Characters</button>
+  <button id="menu-nearby">Nearby</button>
   <button id="menu-logout">Logout</button>
   <button id="menu-agent-console">Agent Console</button>
 </div>
@@ -576,6 +577,9 @@ const economyUi = {
   ge_book: { buys: [], sells: [] },
   ge_orders: [],
   trades: { incoming: [], outgoing: [] },
+};
+const challengeUi = {
+  pending: [],
 };
 const tutorialState = {
   character_id: null,
@@ -1861,6 +1865,7 @@ async function loadProfile() {
     if(player.agent_id && tutorialState.character_id !== player.agent_id) {
       hydrateTutorialState(player.agent_id);
     }
+    await refreshChallengeState();
   } catch {}
 }
 
@@ -1894,6 +1899,7 @@ async function loadCharacterState() {
     if(player.agent_id && tutorialState.character_id !== player.agent_id) {
       hydrateTutorialState(player.agent_id);
     }
+    await refreshChallengeState();
   } catch {
     await loadProfile();
   }
@@ -2247,7 +2253,7 @@ async function openProfilePanel() {
     <div style=\"text-align:left;max-height:390px;overflow:auto;min-width:620px\">
       <div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:8px\">
         <div style=\"color:#d4e1ff;font-size:16px\">👤 Profile</div>
-        <div style=\"color:#7e91a7;font-size:11px\">Hotkeys: [P] profile · [H] highscores · [C] characters · [L] logout</div>
+        <div style=\"color:#7e91a7;font-size:11px\">Hotkeys: [P] profile · [H] highscores · [C] characters · [Y] nearby · [L] logout</div>
       </div>
       <div style=\"display:grid;grid-template-columns:1fr 1fr;gap:8px\">
         <div style=\"border:1px solid #334;padding:8px;background:rgba(12,14,20,.84)\">
@@ -2275,6 +2281,7 @@ async function openProfilePanel() {
         <button onclick=\"window.resumeTutorial()\" style=\"padding:5px 8px;background:#2a4f8a;border:1px solid #4f7cc5;color:#fff;font-size:10px;font-family:monospace;cursor:pointer\">Resume Tutorial</button>
         <button onclick=\"window.openWorldHighscores('pvp')\" style=\"padding:5px 8px;background:#335a66;border:1px solid #4d8d9f;color:#fff;font-size:10px;font-family:monospace;cursor:pointer\">Open Highscores</button>
         <button onclick=\"window.openCharacterPanel()\" style=\"padding:5px 8px;background:#4f4b30;border:1px solid #8a7a44;color:#fff;font-size:10px;font-family:monospace;cursor:pointer\">Manage Characters</button>
+        <button onclick=\"window.openNearbyChallengeOverlay()\" style=\"padding:5px 8px;background:#4a355f;border:1px solid #8762a8;color:#fff;font-size:10px;font-family:monospace;cursor:pointer\">Nearby Players</button>
       </div>
       <div style=\"text-align:center;color:#666;font-size:11px;margin-top:8px\">Press Q or P to close</div>
     </div>
@@ -2507,8 +2514,10 @@ function wirePersistentMenu() {
   document.getElementById('menu-profile').onclick = () => openProfilePanel();
   document.getElementById('menu-highscores').onclick = () => window.openWorldHighscores('pvp');
   document.getElementById('menu-characters').onclick = () => window.openCharacterPanel();
+  document.getElementById('menu-nearby').onclick = () => window.openNearbyChallengeOverlay();
   document.getElementById('menu-logout').onclick = () => logoutToLanding();
   document.getElementById('menu-agent-console').onclick = () => { window.location.href = '/agent-console.html'; };
+  updateNearbyMenuLabel();
 }
 
 function requireSessionForEconomy() {
@@ -2740,6 +2749,200 @@ window.bankWithdrawItem = async function(itemId, qty) {
     await openBankOverlay();
   } catch {
     showFloatingText('Withdraw failed', '#cc3333');
+  }
+};
+
+function getNearbyAgentRows() {
+  return [...worldAgents.values()]
+    .filter((agent) => isSameShard(agent.area_id, agent.instance_id))
+    .map((agent) => {
+      const dx = Number(agent.x || 0) - Number(player.x || 0);
+      const dy = Number(agent.y || 0) - Number(player.y || 0);
+      const distance = Math.round(Math.hypot(dx, dy));
+      return {
+        ...agent,
+        distance,
+      };
+    })
+    .sort((a, b) => a.distance - b.distance || String(a.agent_id).localeCompare(String(b.agent_id)));
+}
+
+function updateNearbyMenuLabel() {
+  const menuButton = document.getElementById('menu-nearby');
+  if(!menuButton) return;
+  const incomingCount = challengeUi.pending.filter(
+    (entry) => entry.status === 'pending' && entry.target_id === player.agent_id
+  ).length;
+  menuButton.textContent = incomingCount > 0 ? `Nearby (${incomingCount})` : 'Nearby';
+}
+
+async function refreshChallengeState() {
+  if(!player.agent_id) {
+    challengeUi.pending = [];
+    updateNearbyMenuLabel();
+    return false;
+  }
+  try {
+    const res = await apiFetch(`/api/v1/arena/challenges/${encodeURIComponent(player.agent_id)}`);
+    if(!res.ok) {
+      challengeUi.pending = [];
+      updateNearbyMenuLabel();
+      return false;
+    }
+    const data = await res.json().catch(() => []);
+    challengeUi.pending = Array.isArray(data) ? data : [];
+    updateNearbyMenuLabel();
+    return true;
+  } catch {
+    challengeUi.pending = [];
+    updateNearbyMenuLabel();
+    return false;
+  }
+}
+
+async function openNearbyChallengeOverlay() {
+  if(!player.agent_id) {
+    registerForArena();
+    return;
+  }
+  await refreshChallengeState();
+  const nearby = getNearbyAgentRows();
+  const incoming = challengeUi.pending
+    .filter((entry) => entry.status === 'pending' && entry.target_id === player.agent_id)
+    .sort((a, b) => Number(b.created_at || 0) - Number(a.created_at || 0));
+  const outgoing = challengeUi.pending
+    .filter((entry) => entry.status === 'pending' && entry.challenger_id === player.agent_id)
+    .sort((a, b) => Number(b.created_at || 0) - Number(a.created_at || 0));
+
+  openOverlayHtml(`
+    <div style="text-align:left;max-height:390px;overflow:auto;min-width:760px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="color:#d4e1ff;font-size:16px">⚔ Nearby Players</div>
+        <div style="color:#8a99ad;font-size:11px">Direct challenge flow</div>
+      </div>
+      <div style="border:1px solid #334;padding:8px;background:rgba(12,14,20,.84);margin-bottom:8px">
+        <div style="color:#8fd2ff;font-size:12px;margin-bottom:6px">Challenge a nearby player</div>
+        <div style="display:grid;grid-template-columns:1fr 120px 120px auto;gap:6px;align-items:center">
+          <select id="challenge-target" style="padding:5px;background:#121723;border:1px solid #33495d;color:#c1d2e7;font-family:monospace;font-size:11px">
+            ${nearby.map((agent) => `<option value="${agent.agent_id}">${agent.agent_id} · ${agent.combat_class || 'unknown'} · ${agent.distance}px</option>`).join('') || '<option value="">No nearby players</option>'}
+          </select>
+          <select id="challenge-arena" style="padding:5px;background:#121723;border:1px solid #33495d;color:#c1d2e7;font-family:monospace;font-size:11px">
+            <option value="duel_arena">duel_arena</option>
+            <option value="pit">pit</option>
+            <option value="mage_tower">mage_tower</option>
+          </select>
+          <input id="challenge-wager" type="number" min="0" value="0" style="padding:5px;background:#121723;border:1px solid #33495d;color:#c1d2e7;font-family:monospace;font-size:11px" />
+          <button onclick="window.sendNearbyChallenge()" style="padding:6px;background:#2a4f8a;border:1px solid #4b79c8;color:#fff;font-size:10px;font-family:monospace;cursor:pointer">Send</button>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="border:1px solid #334;padding:8px;background:rgba(12,14,20,.84)">
+          <div style="color:#8fd2ff;font-size:12px;margin-bottom:6px">Incoming Challenges</div>
+          ${incoming.map((entry) => `
+            <div style="border:1px solid #2c3a4f;padding:6px;margin-bottom:4px">
+              <div style="font-size:11px;color:#d4e1ff">${entry.challenger_id} challenged you</div>
+              <div style="font-size:10px;color:#8a99ad">Arena: ${entry.arena} · Wager: ${entry.wager_amount || 0}</div>
+              <div style="display:flex;gap:4px;margin-top:4px">
+                <button onclick="window.acceptNearbyChallenge('${entry.challenge_id}')" style="padding:3px 6px;background:#2c6c4a;border:1px solid #48a66d;color:#fff;font-size:10px;font-family:monospace;cursor:pointer">Accept</button>
+                <button onclick="window.declineNearbyChallenge('${entry.challenge_id}')" style="padding:3px 6px;background:#7a2f2f;border:1px solid #b65151;color:#fff;font-size:10px;font-family:monospace;cursor:pointer">Decline</button>
+              </div>
+            </div>
+          `).join('') || '<div style="font-size:11px;color:#778">No incoming challenges</div>'}
+        </div>
+        <div style="border:1px solid #334;padding:8px;background:rgba(12,14,20,.84)">
+          <div style="color:#8fd2ff;font-size:12px;margin-bottom:6px">Outgoing Challenges</div>
+          ${outgoing.map((entry) => `
+            <div style="border:1px solid #2c3a4f;padding:6px;margin-bottom:4px">
+              <div style="font-size:11px;color:#d4e1ff">you → ${entry.target_id}</div>
+              <div style="font-size:10px;color:#8a99ad">Arena: ${entry.arena} · Wager: ${entry.wager_amount || 0}</div>
+              <div style="font-size:10px;color:#8a99ad;margin-top:3px">Waiting for response...</div>
+            </div>
+          `).join('') || '<div style="font-size:11px;color:#778">No outgoing challenges</div>'}
+        </div>
+      </div>
+      <div style="text-align:center;color:#666;font-size:11px;margin-top:8px">Press Q or Y to close</div>
+    </div>`);
+}
+window.openNearbyChallengeOverlay = openNearbyChallengeOverlay;
+
+window.sendNearbyChallenge = async function() {
+  if(!player.agent_id) return;
+  const targetAgentId = document.getElementById('challenge-target')?.value || '';
+  const arena = document.getElementById('challenge-arena')?.value || 'duel_arena';
+  const wagerAmount = Math.max(0, Number(document.getElementById('challenge-wager')?.value || 0));
+  if(!targetAgentId) {
+    showFloatingText('No nearby target selected', '#cc3333');
+    return;
+  }
+  try {
+    const res = await apiFetch('/api/v1/arena/challenge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        agent_id: player.agent_id,
+        target_agent_id: targetAgentId,
+        arena,
+        wager_amount: wagerAmount,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok) {
+      showFloatingText(data.error || 'Challenge failed', '#cc3333');
+      return;
+    }
+    showFloatingText(`Challenge sent to ${targetAgentId}`, '#66d4ff');
+    await openNearbyChallengeOverlay();
+  } catch {
+    showFloatingText('Challenge failed', '#cc3333');
+  }
+};
+
+window.acceptNearbyChallenge = async function(challengeId) {
+  if(!player.agent_id || !challengeId) return;
+  try {
+    const res = await apiFetch('/api/v1/arena/accept', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        agent_id: player.agent_id,
+        challenge_id: challengeId,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok) {
+      showFloatingText(data.error || 'Accept failed', '#cc3333');
+      return;
+    }
+    closeCombatOverlay();
+    await refreshChallengeState();
+    if(data.fight_id) {
+      startArenaFightFromMatch(data.fight_id);
+    }
+  } catch {
+    showFloatingText('Accept failed', '#cc3333');
+  }
+};
+
+window.declineNearbyChallenge = async function(challengeId) {
+  if(!player.agent_id || !challengeId) return;
+  try {
+    const res = await apiFetch('/api/v1/arena/decline', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        agent_id: player.agent_id,
+        challenge_id: challengeId,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if(!res.ok) {
+      showFloatingText(data.error || 'Decline failed', '#cc3333');
+      return;
+    }
+    showFloatingText('Challenge declined', '#d4a017');
+    await openNearbyChallengeOverlay();
+  } catch {
+    showFloatingText('Decline failed', '#cc3333');
   }
 };
 
@@ -3543,6 +3746,14 @@ function update() {
         closeCombatOverlay();
       } else {
         window.openCharacterPanel();
+      }
+    }
+    if(keys['y']) {
+      keys['y'] = false;
+      if(registrationOpen) {
+        closeCombatOverlay();
+      } else {
+        window.openNearbyChallengeOverlay();
       }
     }
     if(keys['l']) {

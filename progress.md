@@ -353,3 +353,25 @@ we want a duel arena and an open world side scroller for agents
   - Items: 79
   - Backgrounds: 4
   - UI: 4
+
+## 2026-02-21 (Implementation pass: nearby-player challenge UX + decline lifecycle)
+- Added direct nearby-player duel challenge UX in `public/game.html`:
+  - New in-world persistent menu action: `Nearby`.
+  - New hotkey: `[Y]` to open challenge panel.
+  - Added `Nearby Players` panel with:
+    - nearby same-shard target list sorted by distance,
+    - outgoing challenge tracking,
+    - incoming challenge accept/decline actions.
+  - Wired pending challenge badge count into menu label (`Nearby (n)`).
+- Added backend decline endpoint in `src/routes.ts`:
+  - `POST /api/v1/arena/decline` with target ownership validation and pending-state checks.
+- Added deterministic test coverage in `src/__tests__/routes-world.test.ts`:
+  - pending challenge listing behavior,
+  - wrong-agent decline rejection,
+  - successful decline transition,
+  - accept transition to `fight_started`.
+
+### Validation
+- `bun run lint` -> PASS
+- `bun test src/__tests__/routes-world.test.ts --bail` -> PASS
+- `bun test --bail` -> PASS (38 tests)

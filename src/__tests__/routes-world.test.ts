@@ -171,6 +171,72 @@ describe("routes duel ticks and spellbook", () => {
     expect(["tick_scheduled", "tick_resolved"]).toContain(p2Action.data.status);
   });
 
+  it("lists pending challenges and supports decline plus accept transitions", async () => {
+    const regA = await postJson("/arena/register", {
+      agent_id: "ChallengeA",
+      combat_class: "melee",
+      prayer_book: "normal",
+    });
+    const regB = await postJson("/arena/register", {
+      agent_id: "ChallengeB",
+      combat_class: "ranged",
+      prayer_book: "normal",
+    });
+    expect(regA.ok).toBe(true);
+    expect(regB.ok).toBe(true);
+
+    const challenge = await postJson("/arena/challenge", {
+      agent_id: "ChallengeA",
+      target_agent_id: "ChallengeB",
+      arena: "duel_arena",
+    });
+    expect(challenge.ok).toBe(true);
+
+    const pendingForTarget = await getJson("/arena/challenges/ChallengeB");
+    expect(pendingForTarget.ok).toBe(true);
+    expect(Array.isArray(pendingForTarget.data)).toBe(true);
+    expect(pendingForTarget.data.length).toBe(1);
+    expect(pendingForTarget.data[0].challenge_id).toBe(challenge.data.challenge.challenge_id);
+    expect(pendingForTarget.data[0].status).toBe("pending");
+
+    const declineWrongAgent = await postJson("/arena/decline", {
+      agent_id: "ChallengeA",
+      challenge_id: challenge.data.challenge.challenge_id,
+    });
+    expect(declineWrongAgent.ok).toBe(false);
+    expect(declineWrongAgent.status).toBe(403);
+
+    const decline = await postJson("/arena/decline", {
+      agent_id: "ChallengeB",
+      challenge_id: challenge.data.challenge.challenge_id,
+    });
+    expect(decline.ok).toBe(true);
+    expect(decline.data.status).toBe("challenge_declined");
+    expect(challenges.get(challenge.data.challenge.challenge_id)?.status).toBe("declined");
+
+    const pendingAfterDecline = await getJson("/arena/challenges/ChallengeB");
+    expect(pendingAfterDecline.ok).toBe(true);
+    expect(pendingAfterDecline.data.length).toBe(0);
+
+    const challenge2 = await postJson("/arena/challenge", {
+      agent_id: "ChallengeA",
+      target_agent_id: "ChallengeB",
+      arena: "duel_arena",
+    });
+    expect(challenge2.ok).toBe(true);
+
+    const accept = await postJson("/arena/accept", {
+      agent_id: "ChallengeB",
+      challenge_id: challenge2.data.challenge.challenge_id,
+    });
+    expect(accept.ok).toBe(true);
+    expect(accept.data.status).toBe("fight_started");
+
+    const pendingAfterAccept = await getJson("/arena/challenges/ChallengeB");
+    expect(pendingAfterAccept.ok).toBe(true);
+    expect(pendingAfterAccept.data.length).toBe(0);
+  });
+
   it("casts teleport spells by consuming runes and moving world state", async () => {
     const reg = await postJson("/arena/register", {
       agent_id: "MageA",
